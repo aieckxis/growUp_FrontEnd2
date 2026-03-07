@@ -749,7 +749,7 @@ export default function CameraPage() {
                       : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   }`}
                 >
-                  {hasChanges ? "Save Changes to Raspi" : "Settings Synced"}
+                  {hasChanges ? "Save Changes" : "Settings Synced"}
                 </button>
                 <button
                   onClick={() => setShowSettings(false)}
