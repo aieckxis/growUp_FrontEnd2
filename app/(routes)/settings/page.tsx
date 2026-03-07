@@ -50,12 +50,11 @@ interface ThresholdState {
   dissolvedO2: { min: number; max: number };
   ammonia: { min: number; max: number };
   airTemp: { min: number; max: number };
-  waterFlow: { min: number; max: number }; // For Submersible Pump
-  airHumidity: { min: number; max: number }; // For DC Fan (relative humidity)
-  lightIntensity: { min: number; max: number }; // For Grow Light
+  waterFlow: { min: number; max: number };
+  airHumidity: { min: number; max: number };
+  lightIntensity: { min: number; max: number };
 }
 interface ControlToggleProps { label: string; description: string; icon: React.ElementType; active: boolean; onChange: (val: boolean) => void; }
-interface PresetCardProps { title: string; description: string; icon: React.ElementType; active: boolean; onActivate: () => void; }
 interface ThresholdRangeInputProps {
   label: string;
   unit: string;
@@ -86,7 +85,6 @@ const localStorageKey = 'aquaponics_settings_state';
 
 // --- DYNAMIC ALERT SYSTEM ---
 
-// Convert time to human-readable
 const timeAgo = (date: Date) => {
   const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
 
@@ -97,10 +95,8 @@ const timeAgo = (date: Date) => {
   return `${hours} hrs ago`
 }
 
-// Generate alerts based on live sensor values
 const generateAlerts = (
   sensor: SensorDataState,
-  // Kailangan nating i-include ang lahat ng bagong threshold keys dito
   thresholds: ThresholdState & {
     waterFlow?: { min: number; max: number };
     airHumidity?: { min: number; max: number };
@@ -109,9 +105,8 @@ const generateAlerts = (
 ): AlertData[] => {
   const now = new Date()
   const alerts: AlertData[] = []
-  let alertId = 10; // Start ID from 10, following existing IDs 1-9
+  let alertId = 10;
 
-  // --- Water Temperature (EXISTING) ---
   if (sensor.waterTemp < thresholds.waterTemp.min) {
     alerts.push({
       id: 1, type: "warning", severity: "medium", title: "Water Temperature Low",
@@ -125,7 +120,6 @@ const generateAlerts = (
     })
   }
 
-  // --- pH Level (EXISTING) ---
   if (sensor.ph < thresholds.ph.min) {
     alerts.push({
       id: 3, type: "warning", severity: "medium", title: "pH Level Low",
@@ -139,7 +133,6 @@ const generateAlerts = (
     })
   }
 
-  // --- Dissolved Oxygen (EXISTING) ---
   if (sensor.dissolvedO2 < thresholds.dissolvedO2.min) {
     alerts.push({
       id: 5, type: "warning", severity: "high", title: "Dissolved Oxygen Low",
@@ -153,7 +146,6 @@ const generateAlerts = (
     })
   }
 
-  // --- Ammonia (EXISTING) ---
   if (sensor.ammonia > thresholds.ammonia.max) {
     alerts.push({
       id: 7, type: "warning", severity: "high", title: "Ammonia Level High",
@@ -161,7 +153,6 @@ const generateAlerts = (
     })
   }
 
-  // --- Water Flow Rate (EXISTING) ---
   if (thresholds.waterFlow && sensor.waterFlow !== undefined) {
     if (sensor.waterFlow < thresholds.waterFlow.min) {
       alerts.push({
@@ -177,9 +168,6 @@ const generateAlerts = (
     }
   }
 
-  // --- 🌟 NEW ALERT LOGIC ADDITIONS 🌟 ---
-
-  // --- Air Temperature ---
   if (sensor.airTemp < thresholds.airTemp.min) {
     alerts.push({
       id: alertId++, type: "warning", severity: "low", title: "Air Temperature Low",
@@ -193,7 +181,6 @@ const generateAlerts = (
     })
   }
 
-  // --- Air Humidity (DC Fan Control) ---
   if (thresholds.airHumidity && sensor.airHumidity !== undefined) {
     if (sensor.airHumidity > thresholds.airHumidity.max) {
       alerts.push({
@@ -209,7 +196,6 @@ const generateAlerts = (
     }
   }
 
-  // --- Light Intensity (Grow Light Control) ---
   if (thresholds.lightIntensity && sensor.lightIntensity !== undefined) {
     if (sensor.lightIntensity < thresholds.lightIntensity.min) {
       alerts.push({
@@ -225,30 +211,23 @@ const generateAlerts = (
     }
   }
 
-  // Return only alerts that triggered
   return alerts
 }
-/**
- * Checks overall system status based on generated alerts.
- * If alert list is empty, the system is running optimally.
- */
+
 const checkSystemStatus = (alerts: AlertData[]): 'Optimal' | 'Alerts Active' => {
   if (alerts.length === 0) {
     return 'Optimal';
   }
   return 'Alerts Active';
 };
-/**
- * Synchronously loads state from localStorage.
- */
-const loadState = (): { controls: SystemControls, activePreset: string, thresholds: ThresholdState } => {
+
+const loadState = (): { controls: SystemControls, thresholds: ThresholdState } => {
   try {
     const savedState = localStorage.getItem(localStorageKey);
     if (savedState) {
       const parsedState = JSON.parse(savedState);
       return {
         controls: parsedState.controls || INITIAL_CONTROLS_FULL,
-        activePreset: parsedState.activePreset || "balanced",
         thresholds: {
           ...INITIAL_THRESHOLDS,
           ...parsedState.thresholds,
@@ -259,18 +238,14 @@ const loadState = (): { controls: SystemControls, activePreset: string, threshol
   } catch (error) {
     console.error('Error loading state:', error);
   }
-  return { controls: INITIAL_CONTROLS_FULL, activePreset: "balanced", thresholds: INITIAL_THRESHOLDS, };
+  return { controls: INITIAL_CONTROLS_FULL, thresholds: INITIAL_THRESHOLDS, };
 };
 
-/**
- * Synchronously saves state to localStorage.
- */
-const saveState = (state: { controls: SystemControls, activePreset: string, thresholds: ThresholdState }) => {
+const saveState = (state: { controls: SystemControls, thresholds: ThresholdState }) => {
   try {
     localStorage.setItem(localStorageKey, JSON.stringify(state));
   } catch (error) {
     console.error('Error saving state:', error);
-    // Re-throw or handle error for Promise rejection if necessary
     throw error;
   }
 };
@@ -291,14 +266,8 @@ const useAquaponicsSettings = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // --- Unified Setter Functions (Sets changes flag) ---
   const setControls = (newControls: SystemControls) => {
     setState(prevState => ({ ...prevState, controls: newControls }));
-    setHasChanges(true);
-  };
-
-  const setPreset = (newPreset: string) => {
-    setState(prevState => ({ ...prevState, activePreset: newPreset }));
     setHasChanges(true);
   };
 
@@ -307,9 +276,6 @@ const useAquaponicsSettings = () => {
     setHasChanges(true);
   };
 
-  // 🌟 MODIFIED FOR INP FIX 🌟
-  // We wrap the synchronous save operation in setTimeout(..., 0) to ensure it runs
-  // in the next event loop, allowing the UI to update and preventing main thread blocking.
   const handleSave = (): Promise<boolean> => {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -322,24 +288,22 @@ const useAquaponicsSettings = () => {
           console.error('Deferred save failed:', error);
           resolve(false);
         }
-      }, 0); // Defer to the next event loop cycle
+      }, 0);
     });
   };
 
   return {
     controls: state.controls,
-    activePreset: state.activePreset,
     thresholds: state.thresholds,
     setControls,
-    setPreset,
     setThresholds,
-    handleSave, // Now returns a Promise
+    handleSave,
     hasChanges,
     setHasChanges,
   };
 };
 
-/* COMPONENTS (Navbar, Nav, Toggles, Cards, Input) */
+/* COMPONENTS */
 
 const Navbar: React.FC<{ time: string }> = ({ time }) => (
   <div className="bg-white px-4 py-2.5 flex items-center justify-between text-sm border-b border-gray-100 sticky top-0 z-40">
@@ -403,25 +367,6 @@ const ControlToggle: React.FC<ControlToggleProps> = ({ label, description, icon:
   </div>
 )
 
-const PresetCard: React.FC<PresetCardProps> = ({ title, description, icon: Icon, active, onActivate }) => (
-  <button
-    onClick={onActivate}
-    className={`relative w-full p-4 rounded-xl border-2 transition-all text-left ${active ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'
-      }`}
-  >
-    <div className="flex flex-col items-center justify-center gap-2 h-full text-center">
-      <div className={`p-2 rounded-lg flex-shrink-0 ${active ? 'bg-emerald-100' : 'bg-gray-100'}`}>
-        <Icon className={`w-6 h-6 ${active ? 'text-emerald-600' : 'text-gray-600'}`} />
-      </div>
-      <div className="flex-1">
-        <div className="font-semibold text-sm text-gray-900">{title}</div>
-        <div className="text-[10px] text-gray-500 mt-1">{description}</div>
-      </div>
-      {active && <CheckCircle className="w-4 h-4 text-emerald-500 absolute top-2 right-2" />}
-    </div>
-  </button>
-)
-
 const ThresholdRangeInput: React.FC<ThresholdRangeInputProps> = ({
   label,
   unit,
@@ -482,10 +427,8 @@ const ThresholdRangeInput: React.FC<ThresholdRangeInputProps> = ({
 export default function SettingsPage() {
   const {
     controls,
-    activePreset,
     thresholds,
     setControls,
-    setPreset,
     setThresholds,
     handleSave,
     hasChanges,
@@ -503,7 +446,6 @@ export default function SettingsPage() {
   };
 
   const currentAlerts = generateAlerts(mockSensorData, thresholds);
-  // Ang variable na 'systemStatus' ay hindi na ginagamit sa JSX, pero kailangan pa rin ito para sa 'currentAlerts' logic.
   const systemStatus = checkSystemStatus(currentAlerts);
 
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -515,77 +457,6 @@ export default function SettingsPage() {
 
   const handleControlChange = (key: keyof SystemControls, val: boolean) => {
     setControls({ ...controls, [key]: val })
-  }
-
-  const handlePresetChange = (preset: string) => {
-    setPreset(preset)
-
-    let newControls: SystemControls = controls;
-    let newThresholds: ThresholdState = thresholds;
-
-    switch (preset) {
-      case "balanced":
-        newControls = { pump: true, fan: false, phAdjustment: true, aerator: true, growLight: true }
-        newThresholds = {
-          waterTemp: { min: 22.0, max: 26.0 },
-          ph: { min: 6.5, max: 7.5 },
-          dissolvedO2: { min: 5.5, max: 8.0 },
-          ammonia: { min: 0.0, max: 0.2 },
-          airTemp: { min: 22.0, max: 28.0 },
-          waterFlow: { min: 8.0, max: 12.0 },
-          airHumidity: { min: 50.0, max: 70.0 },
-          lightIntensity: { min: 800.0, max: 1500.0 }
-        }
-        break
-
-      case "highGrowth":
-        newControls = { pump: true, fan: true, phAdjustment: true, aerator: true, growLight: true }
-        newThresholds = {
-          waterTemp: { min: 23.5, max: 25.0 },
-          ph: { min: 6.0, max: 7.0 },
-          dissolvedO2: { min: 6.0, max: 8.5 },
-          ammonia: { min: 0.0, max: 0.1 },
-          airTemp: { min: 24.0, max: 26.0 },
-          waterFlow: { min: 10.0, max: 15.0 },
-          airHumidity: { min: 60.0, max: 80.0 },
-          lightIntensity: { min: 1800.0, max: 2500.0 }
-        }
-        break
-
-      case "ecoMode":
-        newControls = { pump: true, fan: false, phAdjustment: false, aerator: false, growLight: false }
-        newThresholds = {
-          waterTemp: { min: 21.0, max: 27.0 },
-          ph: { min: 6.0, max: 8.0 },
-          dissolvedO2: { min: 5.0, max: 8.0 },
-          ammonia: { min: 0.0, max: 0.5 },
-          airTemp: { min: 20.0, max: 30.0 },
-          waterFlow: { min: 5.0, max: 10.0 },
-          airHumidity: { min: 40.0, max: 70.0 },
-          lightIntensity: { min: 300.0, max: 800.0 }
-        }
-        break
-
-      case "maintenance":
-        newControls = { pump: false, fan: true, phAdjustment: false, aerator: false, growLight: false }
-        newThresholds = {
-          waterTemp: { min: 22.0, max: 26.0 },
-          ph: { min: 6.5, max: 7.5 },
-          dissolvedO2: { min: 5.5, max: 8.0 },
-          ammonia: { min: 0.0, max: 0.2 },
-          airTemp: { min: 22.0, max: 28.0 },
-          waterFlow: { min: 0.0, max: 1.0 },
-          airHumidity: { min: 40.0, max: 80.0 },
-          lightIntensity: { min: 0.0, max: 100.0 }
-        }
-        break
-      default:
-        newControls = controls;
-        newThresholds = thresholds;
-    }
-
-    setControls(newControls);
-    setThresholds(newThresholds);
   }
 
   const handleSaveChanges = async () => {
@@ -620,18 +491,7 @@ export default function SettingsPage() {
 
         <div className="space-y-5">
 
-          {/* 1. Automation Presets */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <h3 className="font-bold text-gray-900 mb-4">Automation Presets</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <PresetCard title="Balanced Mode" description="Optimal standard settings" icon={Activity} active={activePreset === "balanced"} onActivate={() => handlePresetChange("balanced")} />
-              <PresetCard title="High Growth Mode" description="Max resources for fast growth" icon={Zap} active={activePreset === "highGrowth"} onActivate={() => handlePresetChange("highGrowth")} />
-              <PresetCard title="Eco Mode" description="Energy saving & reduced power" icon={Sun} active={activePreset === "ecoMode"} onActivate={() => handlePresetChange("ecoMode")} />
-              <PresetCard title="Maintenance Mode" description="System shutdown for servicing" icon={AlertTriangle} active={activePreset === "maintenance"} onActivate={() => handlePresetChange("maintenance")} />
-            </div>
-          </div>
-
-          {/* 2. Control Panel */}
+          {/* 1. Control Panel */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <h3 className="font-bold text-gray-900 mb-4">System Controls</h3>
             <div className="space-y-3">
@@ -643,7 +503,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Alert Thresholds */}
+          {/* 2. Alert Thresholds */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="flex items-center gap-2 mb-4">
               <Bell className="w-5 h-5 text-amber-500" />
@@ -661,7 +521,6 @@ export default function SettingsPage() {
                 onMinChange={(val) => handleThresholdChange('waterTemp', 'min', val)}
                 onMaxChange={(val) => handleThresholdChange('waterTemp', 'max', val)}
               />
-
               <ThresholdRangeInput
                 label="Air Temperature"
                 unit="°C"
@@ -673,7 +532,6 @@ export default function SettingsPage() {
                 onMinChange={(val) => handleThresholdChange('airTemp', 'min', val)}
                 onMaxChange={(val) => handleThresholdChange('airTemp', 'max', val)}
               />
-
               <ThresholdRangeInput
                 label="pH Level"
                 unit=""
@@ -743,7 +601,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* System Info */}
+          {/* 3. System Info */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <h3 className="font-bold text-gray-900 mb-4">System Information</h3>
             <div className="space-y-3 text-sm">
