@@ -2,121 +2,110 @@
 
 import React, { useState, useEffect } from "react"
 import {
-  AreaChart,
-  Area,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-  CartesianGrid,
-  Tooltip,
-  Legend,
+  AreaChart, Area, LineChart, Line,
+  XAxis, YAxis, ResponsiveContainer, CartesianGrid, Tooltip, Legend,
 } from "recharts"
 import {
-  Fish,
-  Droplets,
-  Download,
-  Calendar,
-  Filter,
-  Home,
-  Camera,
-  Settings,
-  BarChart3,
-  Clock,
-  WifiOff,
+  Fish, Droplets, Download, Calendar, Filter,
+  Home, Camera, Settings, BarChart3, Clock, WifiOff,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
-/* TYPES */
+/* --- TYPES --- */
 
 type SensorKey =
-  | "waterTemp"
-  | "ph"
-  | "airTemp"
-  | "lightIntensity"
-  | "waterLevel"
-  | "waterFlow"
-  | "humidity"
-  | "airPressure"
+  | "waterTemp" | "ph" | "airTemp" | "lightIntensity"
+  | "waterLevel" | "waterFlow" | "humidity" | "airPressure"
 
 type SensorState = Record<SensorKey, boolean>
-
 type SensorTrendRow = { time: string } & Record<SensorKey, number>
-
 type GrowthRow = { day: string; height: number; leaves: number; health: number }
 
-/* MOCK DATA */
+/* --- CONFIG --- */
 
-const WEEKLY_GROWTH_DATA: GrowthRow[] = [
-  { day: "W1 Mon", height: 12.5, leaves: 8, health: 92 },
-  { day: "W1 Tue", height: 13.2, leaves: 9, health: 94 },
-  { day: "W1 Wed", height: 14.1, leaves: 10, health: 95 },
-  { day: "W1 Thu", height: 15.3, leaves: 11, health: 96 },
-  { day: "W1 Fri", height: 16.8, leaves: 12, health: 97 },
-  { day: "W1 Sat", height: 18.2, leaves: 13, health: 98 },
-  { day: "W1 Sun", height: 19.5, leaves: 14, health: 99 },
-  { day: "W2 Mon", height: 20.0, leaves: 15, health: 99 },
-  { day: "W2 Tue", height: 20.5, leaves: 16, health: 99 },
-  { day: "W2 Wed", height: 21.1, leaves: 17, health: 98 },
-  { day: "W2 Thu", height: 21.6, leaves: 18, health: 97 },
-  { day: "W2 Fri", height: 22.3, leaves: 19, health: 97 },
-  { day: "W2 Sat", height: 23.0, leaves: 20, health: 98 },
-  { day: "W2 Sun", height: 23.5, leaves: 21, health: 99 },
-]
+const RASPI_API_BASE_URL = process.env.NEXT_PUBLIC_RASPI_API_URL || "http://192.168.210.142:8000"
 
-const SENSOR_TREND_DATA: SensorTrendRow[] = [
-  { time: "00:00", waterTemp: 22.5, ph: 6.8, airTemp: 24.0, lightIntensity: 0, waterLevel: 85, waterFlow: 12, humidity: 65, airPressure: 1012.5 },
-  { time: "01:00", waterTemp: 22.3, ph: 6.8, airTemp: 23.5, lightIntensity: 0, waterLevel: 84, waterFlow: 12, humidity: 67, airPressure: 1013.0 },
-  { time: "02:00", waterTemp: 22.1, ph: 6.9, airTemp: 23.0, lightIntensity: 0, waterLevel: 84, waterFlow: 12, humidity: 68, airPressure: 1013.5 },
-  { time: "03:00", waterTemp: 22.2, ph: 6.9, airTemp: 23.0, lightIntensity: 0, waterLevel: 84, waterFlow: 12, humidity: 68, airPressure: 1014.1 },
-  { time: "04:00", waterTemp: 22.2, ph: 6.9, airTemp: 23.0, lightIntensity: 0, waterLevel: 84, waterFlow: 12, humidity: 68, airPressure: 1014.1 },
-  { time: "05:00", waterTemp: 22.3, ph: 6.9, airTemp: 23.5, lightIntensity: 0, waterLevel: 83, waterFlow: 12, humidity: 67, airPressure: 1014.5 },
-  { time: "06:00", waterTemp: 22.6, ph: 7.0, airTemp: 24.5, lightIntensity: 150, waterLevel: 83, waterFlow: 13, humidity: 65, airPressure: 1015.0 },
-  { time: "07:00", waterTemp: 22.9, ph: 7.0, airTemp: 25.5, lightIntensity: 300, waterLevel: 83, waterFlow: 13, humidity: 63, airPressure: 1015.2 },
-  { time: "08:00", waterTemp: 23.1, ph: 7.0, airTemp: 26.0, lightIntensity: 450, waterLevel: 83, waterFlow: 13, humidity: 62, airPressure: 1015.3 },
-  { time: "09:00", waterTemp: 23.5, ph: 7.0, airTemp: 27.0, lightIntensity: 600, waterLevel: 82, waterFlow: 13, humidity: 60, airPressure: 1015.1 },
-  { time: "10:00", waterTemp: 23.9, ph: 7.1, airTemp: 28.0, lightIntensity: 750, waterLevel: 82, waterFlow: 13, humidity: 59, airPressure: 1014.5 },
-  { time: "11:00", waterTemp: 24.2, ph: 7.1, airTemp: 28.5, lightIntensity: 800, waterLevel: 82, waterFlow: 13, humidity: 58, airPressure: 1014.0 },
-  { time: "12:00", waterTemp: 24.5, ph: 7.1, airTemp: 29.0, lightIntensity: 850, waterLevel: 82, waterFlow: 13, humidity: 58, airPressure: 1013.8 },
-  { time: "13:00", waterTemp: 24.8, ph: 7.1, airTemp: 29.5, lightIntensity: 800, waterLevel: 81, waterFlow: 12, humidity: 57, airPressure: 1013.0 },
-  { time: "14:00", waterTemp: 25.0, ph: 7.1, airTemp: 29.2, lightIntensity: 750, waterLevel: 81, waterFlow: 12, humidity: 58, airPressure: 1012.5 },
-  { time: "15:00", waterTemp: 24.9, ph: 7.0, airTemp: 28.5, lightIntensity: 680, waterLevel: 81, waterFlow: 12, humidity: 59, airPressure: 1011.8 },
-  { time: "16:00", waterTemp: 24.8, ph: 7.0, airTemp: 28.0, lightIntensity: 620, waterLevel: 81, waterFlow: 12, humidity: 60, airPressure: 1011.0 },
-  { time: "17:00", waterTemp: 24.5, ph: 7.0, airTemp: 27.0, lightIntensity: 500, waterLevel: 81, waterFlow: 12, humidity: 62, airPressure: 1011.0 },
-  { time: "18:00", waterTemp: 24.1, ph: 6.9, airTemp: 26.0, lightIntensity: 300, waterLevel: 82, waterFlow: 12, humidity: 63, airPressure: 1011.5 },
-  { time: "19:00", waterTemp: 23.8, ph: 6.9, airTemp: 25.5, lightIntensity: 200, waterLevel: 82, waterFlow: 12, humidity: 64, airPressure: 1012.0 },
-  { time: "20:00", waterTemp: 23.5, ph: 6.9, airTemp: 25.0, lightIntensity: 120, waterLevel: 82, waterFlow: 12, humidity: 64, airPressure: 1012.2 },
-  { time: "21:00", waterTemp: 23.2, ph: 6.8, airTemp: 24.5, lightIntensity: 50, waterLevel: 83, waterFlow: 12, humidity: 65, airPressure: 1012.5 },
-  { time: "22:00", waterTemp: 22.9, ph: 6.8, airTemp: 24.2, lightIntensity: 0, waterLevel: 84, waterFlow: 12, humidity: 65, airPressure: 1012.8 },
-  { time: "23:00", waterTemp: 22.7, ph: 6.8, airTemp: 24.1, lightIntensity: 0, waterLevel: 85, waterFlow: 12, humidity: 65, airPressure: 1012.5 },
-]
+/* --- SENSOR CONFIGURATION --- */
 
-/* SENSOR CONFIGURATION */
 const sensorConfig: {
-  key: SensorKey
-  name: string
-  color: string
-  unit: string
-  format: (val: number) => string
+  key: SensorKey; name: string; color: string; unit: string; format: (val: number) => string
 }[] = [
-  { key: "waterTemp", name: "Water Temp (DS18B20)", color: "#3b82f6", unit: "°C", format: (v) => v.toFixed(1) },
-  { key: "ph", name: "pH Level (PH4502C)", color: "#8b5cf6", unit: "", format: (v) => v.toFixed(1) },
-  { key: "airTemp", name: "Air Temp (BME280)", color: "#f59e0b", unit: "°C", format: (v) => v.toFixed(0) },
-  { key: "lightIntensity", name: "Light (BH1750)", color: "#eab308", unit: "lux", format: (v) => v.toFixed(0) },
-  { key: "humidity", name: "Humidity (BME280)", color: "#14b8a6", unit: "%", format: (v) => v.toFixed(0) },
-  { key: "airPressure", name: "Air Pressure (BME280)", color: "#ef4444", unit: "hPa", format: (v) => v.toFixed(1) },
-  { key: "waterLevel", name: "Water Level (HC SR04)", color: "#06b6d4", unit: "%", format: (v) => v.toFixed(0) },
-  { key: "waterFlow", name: "Flow Rate (YF-S201)", color: "#6366f1", unit: "L/min", format: (v) => v.toFixed(0) },
+  { key: "waterTemp",     name: "Water Temp (DS18B20)",   color: "#3b82f6", unit: "°C",    format: (v) => v.toFixed(1) },
+  { key: "ph",            name: "pH Level (PH4502C)",     color: "#8b5cf6", unit: "",       format: (v) => v.toFixed(1) },
+  { key: "airTemp",       name: "Air Temp (BME280)",      color: "#f59e0b", unit: "°C",    format: (v) => v.toFixed(0) },
+  { key: "lightIntensity",name: "Light (BH1750)",         color: "#eab308", unit: "lux",   format: (v) => v.toFixed(0) },
+  { key: "humidity",      name: "Humidity (BME280)",      color: "#14b8a6", unit: "%",     format: (v) => v.toFixed(0) },
+  { key: "airPressure",   name: "Air Pressure (BME280)",  color: "#ef4444", unit: "hPa",   format: (v) => v.toFixed(1) },
+  { key: "waterLevel",    name: "Water Level (HC SR04)",  color: "#06b6d4", unit: "%",     format: (v) => v.toFixed(0) },
+  { key: "waterFlow",     name: "Flow Rate (YF-S201)",    color: "#6366f1", unit: "L/min", format: (v) => v.toFixed(0) },
 ]
 
-/* UTILITY FUNCTIONS */
+/* --- API FUNCTIONS --- */
 
-const formatDate = () => {
-  const now = new Date()
-  return now.toISOString().split("T")[0]
+// ✅ Fetch historical sensor data
+// Expected: { data: [{ time, waterTemp, ph, airTemp, lightIntensity, waterLevel, waterFlow, humidity, airPressure }] }
+const fetchSensorHistoryAPI = async (range: string): Promise<SensorTrendRow[]> => {
+  try {
+    const res = await fetch(`${RASPI_API_BASE_URL}/analytics/sensors?range=${range}`, {
+      cache: "no-store",
+      headers: { "ngrok-skip-browser-warning": "true" },
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const json = await res.json()
+    return json.data ?? []
+  } catch (error) {
+    console.error("❌ Failed to fetch sensor history:", error)
+    return []
+  }
 }
+
+// ✅ Fetch plant growth history
+// Expected: { data: [{ day, height, leaves, health }] }
+const fetchGrowthHistoryAPI = async (range: string): Promise<GrowthRow[]> => {
+  try {
+    const res = await fetch(`${RASPI_API_BASE_URL}/analytics/growth?range=${range}`, {
+      cache: "no-store",
+      headers: { "ngrok-skip-browser-warning": "true" },
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const json = await res.json()
+    return json.data ?? []
+  } catch (error) {
+    console.error("❌ Failed to fetch growth history:", error)
+    return []
+  }
+}
+
+// ✅ Fetch latest single sensor reading (for Health Metrics & Live Table)
+// Reuses existing /api/sensors Next.js proxy
+const fetchLatestSensorAPI = async (): Promise<SensorTrendRow | undefined> => {
+  try {
+    const res = await fetch("/api/sensors", { cache: "no-store" })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const json = await res.json()
+    if (json.status !== "success" || !json.data) return undefined
+    const d = json.data
+    return {
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
+      waterTemp:      d.waterTemp      ?? 0,
+      ph:             d.ph             ?? 0,
+      airTemp:        d.airTemp        ?? 0,
+      lightIntensity: d.lightIntensity ?? 0,
+      waterLevel:     d.waterLevel     ?? 0,
+      waterFlow:      d.waterFlow      ?? 0,
+      humidity:       d.humidity       ?? 0,
+      airPressure:    d.airPressure    ?? 0,
+    }
+  } catch (error) {
+    console.error("❌ Failed to fetch latest sensor:", error)
+    return undefined
+  }
+}
+
+/* --- UTILITY FUNCTIONS --- */
+
+const formatDate = () => new Date().toISOString().split("T")[0]
 
 const downloadCSV = (filename: string, headers: string[], rows: any[][]) => {
   const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n")
@@ -129,23 +118,16 @@ const downloadCSV = (filename: string, headers: string[], rows: any[][]) => {
   window.URL.revokeObjectURL(url)
 }
 
-/* HELPER: Water Quality Calculation (removed dissolvedO2 and ammonia) */
-const calculateWaterQuality = (data: {
-  waterTemp: number
-  ph: number
-}): number => {
+const calculateWaterQuality = (data: { waterTemp: number; ph: number }): number => {
   let score = 100
-
   if (data.ph < 6.5 || data.ph > 7.5) score -= 20
   else if (data.ph < 6.7 || data.ph > 7.3) score -= 10
-
   if (data.waterTemp < 20 || data.waterTemp > 26) score -= 15
   else if (data.waterTemp < 21 || data.waterTemp > 25) score -= 5
-
   return Math.max(0, Math.min(100, score))
 }
 
-/* NAVIGATION COMPONENTS */
+/* --- NAVIGATION COMPONENTS --- */
 
 const Navbar: React.FC<{ time: string; isConnected: boolean }> = ({ time, isConnected }) => (
   <div className="bg-white px-4 py-2.5 flex items-center justify-between text-sm border-b border-gray-100 sticky top-0 z-40">
@@ -164,12 +146,11 @@ const Navbar: React.FC<{ time: string; isConnected: boolean }> = ({ time, isConn
 const BottomNavigation = () => {
   const pathname = usePathname()
   const tabs = [
-    { id: "dashboard", label: "Home", href: "/dashboard", icon: Home },
-    { id: "analytics", label: "Analytics", href: "/analytics", icon: BarChart3 },
-    { id: "camera", label: "Camera", href: "/camera", icon: Camera },
-    { id: "settings", label: "Settings", href: "/settings", icon: Settings },
+    { id: "dashboard",  label: "Home",      href: "/dashboard",  icon: Home },
+    { id: "analytics",  label: "Analytics", href: "/analytics",  icon: BarChart3 },
+    { id: "camera",     label: "Camera",    href: "/camera",     icon: Camera },
+    { id: "settings",   label: "Settings",  href: "/settings",   icon: Settings },
   ]
-
   return (
     <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200 shadow-lg z-50">
       <div className="flex items-center justify-around py-3">
@@ -177,13 +158,7 @@ const BottomNavigation = () => {
           const isActive = pathname.startsWith(tab.href)
           const Icon = tab.icon
           return (
-            <Link
-              key={tab.id}
-              href={tab.href}
-              className={`flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
-                isActive ? "text-emerald-600 bg-emerald-50" : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
+            <Link key={tab.id} href={tab.href} className={`flex flex-col items-center py-2 px-4 rounded-lg transition-all ${isActive ? "text-emerald-600 bg-emerald-50" : "text-gray-500 hover:text-gray-700"}`}>
               <Icon className="w-5 h-5 mb-1" />
               <span className="text-xs font-semibold">{tab.label}</span>
             </Link>
@@ -194,85 +169,145 @@ const BottomNavigation = () => {
   )
 }
 
-/* SENSOR READINGS TABLE */
+/* --- LIVE SENSOR READINGS TABLE --- */
+
 const SensorReadingsTable: React.FC<{ latestData?: SensorTrendRow; currentTime: Date; isConnected: boolean }> = ({
-  latestData,
-  currentTime,
-  isConnected,
-}) => {
-  const fallback = SENSOR_TREND_DATA[SENSOR_TREND_DATA.length - 1]
-  const dataForDisplay = latestData ?? fallback
+  latestData, currentTime, isConnected,
+}) => (
+  <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
+    <h3 className="font-bold text-lg text-gray-900 mb-4 border-b pb-2 flex items-center gap-2">
+      <Clock className="w-5 h-5 text-gray-500" />
+      Live Sensor Readings
+      <span className="text-xs font-normal text-gray-500 ml-auto flex items-center gap-2">
+        {isConnected ? (
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+            @ {currentTime.toLocaleTimeString()}
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-red-600">
+            <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+            Offline
+          </span>
+        )}
+      </span>
+    </h3>
 
-  return (
-    <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
-      <h3 className="font-bold text-lg text-gray-900 mb-4 border-b pb-2 flex items-center gap-2">
-        <Clock className="w-5 h-5 text-gray-500" />
-        Live Sensor Readings
-        <span className="text-xs font-normal text-gray-500 ml-auto flex items-center gap-2">
-          {isConnected ? (
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-              @ {currentTime.toLocaleTimeString()}
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-red-600">
-              <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-              Offline
-            </span>
-          )}
-        </span>
-      </h3>
-
+    {!latestData ? (
+      <div className="text-center py-6 text-gray-400 text-sm">
+        No sensor data. Check Raspberry Pi connection.
+      </div>
+    ) : (
       <div className="grid grid-cols-2 gap-3">
         {sensorConfig.map((sensor) => (
-          <div
-            key={sensor.key}
-            className="p-3 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-between hover:shadow-md transition-shadow"
-          >
+          <div key={sensor.key} className="p-3 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-between hover:shadow-md transition-shadow">
             <span className="text-xs font-medium text-gray-700">{sensor.name.split("(")[0].trim()}</span>
             <span className="text-sm font-bold" style={{ color: sensor.color }}>
-              {sensor.format((dataForDisplay as any)[sensor.key] ?? 0)} {sensor.unit}
+              {sensor.format((latestData as any)[sensor.key] ?? 0)} {sensor.unit}
             </span>
           </div>
         ))}
       </div>
+    )}
 
-      <p className="text-xs text-gray-500 mt-3 text-center">
-        {isConnected ? "Real-time data from Raspberry Pi • Updates every 5s" : "⚠️ Connection lost. Showing last known values."}
-      </p>
-    </div>
-  )
-}
+    <p className="text-xs text-gray-500 mt-3 text-center">
+      {isConnected ? "Real-time data from Raspberry Pi • Updates every 5s" : "⚠️ Connection lost. Showing last known values."}
+    </p>
+  </div>
+)
 
-/* MAIN COMPONENT */
+/* --- MAIN COMPONENT --- */
+
 export default function Analytics() {
   const [selectedSensors, setSelectedSensors] = useState<SensorState>({
-    waterTemp: true,
-    ph: true,
-    airTemp: false,
-    lightIntensity: false,
-    waterLevel: false,
-    waterFlow: false,
-    humidity: false,
-    airPressure: false,
-  } as SensorState)
+    waterTemp: true, ph: true, airTemp: false, lightIntensity: false,
+    waterLevel: false, waterFlow: false, humidity: false, airPressure: false,
+  })
 
-  const [selectedRange, setSelectedRange] = useState("thisWeek")
+  const [selectedRange, setSelectedRange]         = useState("thisWeek")
+  const [sensorExportRange, setSensorExportRange] = useState("24h")
   const [showGrowthFilters, setShowGrowthFilters] = useState(false)
   const [showSensorFilters, setShowSensorFilters] = useState(false)
-  const [currentTime, setCurrentTime] = useState(new Date())
-  const [sensorExportRange, setSensorExportRange] = useState("24h")
+  const [currentTime, setCurrentTime]             = useState(new Date())
+  const [dateWarning, setDateWarning]             = useState("")
 
   const [customGrowthStartDate, setCustomGrowthStartDate] = useState(formatDate())
-  const [customGrowthEndDate, setCustomGrowthEndDate] = useState(formatDate())
+  const [customGrowthEndDate, setCustomGrowthEndDate]     = useState(formatDate())
   const [customSensorStartDate, setCustomSensorStartDate] = useState(formatDate())
-  const [customSensorEndDate, setCustomSensorEndDate] = useState(formatDate())
-  const [dateWarning, setDateWarning] = useState("")
+  const [customSensorEndDate, setCustomSensorEndDate]     = useState(formatDate())
+
+  // ✅ All real data — no mock
+  const [growthData, setGrowthData]         = useState<GrowthRow[]>([])
+  const [growthLoading, setGrowthLoading]   = useState(true)
+  const [sensorHistory, setSensorHistory]   = useState<SensorTrendRow[]>([])
+  const [sensorLoading, setSensorLoading]   = useState(true)
+  const [latestReading, setLatestReading]   = useState<SensorTrendRow | undefined>(undefined)
+  const [isRaspiConnected, setIsRaspiConnected] = useState(true)
 
   const MAX_SAMPLES = 200
   const [liveSensorData, setLiveSensorData] = useState<SensorTrendRow[]>([])
-  const [latestReading, setLatestReading] = useState<SensorTrendRow | undefined>(undefined)
-  const [isRaspiConnected, setIsRaspiConnected] = useState<boolean>(true)
+
+  const activeCount = Object.values(selectedSensors).filter(Boolean).length
+
+  const localSensorConfig: { key: SensorKey; name: string; color: string }[] = [
+    { key: "waterTemp",      name: "Water Temp",   color: "#3b82f6" },
+    { key: "ph",             name: "pH Level",     color: "#8b5cf6" },
+    { key: "airTemp",        name: "Air Temp",     color: "#f59e0b" },
+    { key: "lightIntensity", name: "Light",        color: "#eab308" },
+    { key: "waterLevel",     name: "Water Level",  color: "#06b6d4" },
+    { key: "waterFlow",      name: "Flow Rate",    color: "#6366f1" },
+    { key: "humidity",       name: "Humidity",     color: "#14b8a6" },
+    { key: "airPressure",    name: "Air Pressure", color: "#ef4444" },
+  ]
+
+  // ✅ Fetch growth data when range changes
+  useEffect(() => {
+    const load = async () => {
+      setGrowthLoading(true)
+      const data = await fetchGrowthHistoryAPI(selectedRange)
+      setGrowthData(data)
+      setGrowthLoading(false)
+    }
+    load()
+  }, [selectedRange])
+
+  // ✅ Fetch sensor history when range changes
+  useEffect(() => {
+    const load = async () => {
+      setSensorLoading(true)
+      const data = await fetchSensorHistoryAPI(sensorExportRange)
+      setSensorHistory(data)
+      setSensorLoading(false)
+    }
+    load()
+  }, [sensorExportRange])
+
+  // ✅ Live sensor polling every 5s
+  useEffect(() => {
+    let mounted = true
+
+    const poll = async () => {
+      const reading = await fetchLatestSensorAPI()
+      if (!mounted) return
+      if (reading) {
+        setIsRaspiConnected(true)
+        setLatestReading(reading)
+        setLiveSensorData((prev) => [...prev, reading].slice(-MAX_SAMPLES))
+      } else {
+        setIsRaspiConnected(false)
+      }
+    }
+
+    poll()
+    const interval = setInterval(poll, 5000)
+    return () => { mounted = false; clearInterval(interval) }
+  }, [])
+
+  // Time ticker
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleDateChange = (type: "growth" | "sensor", key: "start" | "end", value: string) => {
     let start: string, end: string
@@ -283,23 +318,8 @@ export default function Analytics() {
       if (key === "start") { start = value; end = customSensorEndDate; setCustomSensorStartDate(value) }
       else { start = customSensorStartDate; end = value; setCustomSensorEndDate(value) }
     }
-    let currentWarning = ""
-    if (new Date(start) > new Date(end)) currentWarning = "Start date cannot be after the end date."
-    setDateWarning(currentWarning)
+    setDateWarning(new Date(start) > new Date(end) ? "Start date cannot be after the end date." : "")
   }
-
-  const filteredGrowthData = (() => {
-    if (selectedRange === "customGrowth") return WEEKLY_GROWTH_DATA.slice(3)
-    switch (selectedRange) {
-      case "lastWeek": return WEEKLY_GROWTH_DATA.slice(0, 7)
-      case "twoWeeks": return WEEKLY_GROWTH_DATA.slice(0, 14)
-      case "thisWeek": return WEEKLY_GROWTH_DATA.slice(7, 14)
-      default: return WEEKLY_GROWTH_DATA
-    }
-  })()
-
-  const lastGrowth = filteredGrowthData[filteredGrowthData.length - 1]
-  const activeCount = Object.values(selectedSensors).filter(Boolean).length
 
   const applyCustomDateFilter = (type: "growth" | "sensor") => {
     if (dateWarning) return
@@ -307,131 +327,47 @@ export default function Analytics() {
     else { setSensorExportRange(""); setTimeout(() => setSensorExportRange("custom"), 0) }
   }
 
+  // Chart data: prefer live data for 24h, else use fetched history
+  const chartSensorData = sensorExportRange === "24h" && liveSensorData.length > 0
+    ? liveSensorData.slice(-24)
+    : sensorHistory
+
+  const lastGrowth = growthData[growthData.length - 1]
+
+  const toggleSensor = (key: SensorKey) => setSelectedSensors((prev) => ({ ...prev, [key]: !prev[key] }))
+  const selectAllSensors = () => setSelectedSensors(Object.keys(selectedSensors).reduce((acc, key) => ({ ...acc, [key]: true }), {} as SensorState))
+  const deselectAllSensors = () => setSelectedSensors(Object.keys(selectedSensors).reduce((acc, key) => ({ ...acc, [key]: false }), {} as SensorState))
+
+  /* --- EXPORTS --- */
+
   const exportGrowthDataCSV = () => {
-    const mockBaseDate = new Date(new Date().setDate(new Date().getDate() - filteredGrowthData.length))
-    const filename = `plant_growth_${selectedRange}_${formatDate()}.csv`
-    const headers = ["Date (Mock)", "Day", "Height (cm)", "Leaves", "Health (%)"]
-    const rows = filteredGrowthData.map((d: GrowthRow, index) => {
-      const mockDate = new Date(mockBaseDate)
-      mockDate.setDate(mockBaseDate.getDate() + index)
-      return [mockDate.toISOString().split("T")[0], d.day, d.height, d.leaves, d.health]
-    })
-    downloadCSV(filename, headers, rows)
+    if (growthData.length === 0) return
+    downloadCSV(
+      `plant_growth_${selectedRange}_${formatDate()}.csv`,
+      ["Day", "Height (cm)", "Leaves", "Health (%)"],
+      growthData.map((d) => [d.day, d.height, d.leaves, d.health])
+    )
   }
 
   const exportSensorDataCSV = () => {
-    const activeKeys = Object.entries(selectedSensors).filter(([_, isActive]) => isActive).map(([key]) => key as SensorKey)
-    const filename = `sensor_data_${sensorExportRange}_${formatDate()}.csv`
-    const timeHeader =
-      sensorExportRange === "7d" ? "Day & Time (168 Total Readings)" :
-      sensorExportRange === "48h" ? "Day & Time (48 Total Readings)" : "Time (24H)"
-    const headers = [
-      timeHeader,
-      ...activeKeys.map((k) => {
-        const config = sensorConfig.find((s) => s.key === k)
-        return config ? `${config.name.split("(")[0].trim()} (${config.unit})` : k
-      }),
-    ]
-    const rows = filteredSensorData.map((entry: SensorTrendRow) => [entry.time, ...activeKeys.map((key: SensorKey) => entry[key])])
-    downloadCSV(filename, headers, rows)
+    if (chartSensorData.length === 0) return
+    const activeKeys = Object.entries(selectedSensors).filter(([_, v]) => v).map(([k]) => k as SensorKey)
+    downloadCSV(
+      `sensor_data_${sensorExportRange}_${formatDate()}.csv`,
+      ["Time", ...activeKeys.map((k) => { const c = sensorConfig.find((s) => s.key === k); return c ? `${c.name.split("(")[0].trim()} (${c.unit})` : k })],
+      chartSensorData.map((entry) => [entry.time, ...activeKeys.map((key) => entry[key])])
+    )
   }
 
   const exportAllData = () => {
-    const filename = `complete_analytics_${formatDate()}.csv`
-    const headers = ["Type", "Day/Time", "Value1", "Value2", "Value3", "Value4"]
-    const growthRows = filteredGrowthData.map((d: GrowthRow) => ["Growth", d.day, `Height: ${d.height}cm`, `Leaves: ${d.leaves}`, `Health: ${d.health}%`, ""])
-    const sensorRows = filteredSensorData.map((d: SensorTrendRow) => ["Sensor", d.time, `Water: ${d.waterTemp}°C`, `pH: ${d.ph}`, `Light: ${d.lightIntensity}lux`, `Humidity: ${d.humidity}%`])
-    downloadCSV(filename, headers, [...growthRows, [""], ...sensorRows])
+    const headers = ["Type", "Day/Time", "Value1", "Value2", "Value3"]
+    const growthRows = growthData.map((d) => ["Growth", d.day, `Height: ${d.height}cm`, `Leaves: ${d.leaves}`, `Health: ${d.health}%`])
+    const sensorRows = chartSensorData.map((d) => ["Sensor", d.time, `Water: ${d.waterTemp}°C`, `pH: ${d.ph}`, `Light: ${d.lightIntensity}lux`])
+    downloadCSV(`complete_analytics_${formatDate()}.csv`, headers, [...growthRows, [""], ...sensorRows])
   }
 
-  const localSensorConfig: { key: SensorKey; name: string; color: string }[] = [
-    { key: "waterTemp", name: "Water Temp", color: "#3b82f6" },
-    { key: "ph", name: "pH Level", color: "#8b5cf6" },
-    { key: "airTemp", name: "Air Temp", color: "#f59e0b" },
-    { key: "lightIntensity", name: "Light", color: "#eab308" },
-    { key: "waterLevel", name: "Water Level", color: "#06b6d4" },
-    { key: "waterFlow", name: "Flow Rate", color: "#6366f1" },
-    { key: "humidity", name: "Humidity", color: "#14b8a6" },
-    { key: "airPressure", name: "Air Pressure", color: "#ef4444" },
-  ]
+  /* --- RENDER --- */
 
-  const toggleSensor = (key: SensorKey) => setSelectedSensors((prev) => ({ ...prev, [key]: !prev[key] }))
-
-  const selectAllSensors = () => {
-    setSelectedSensors(Object.keys(selectedSensors).reduce((acc, key) => ({ ...acc, [key]: true }), {} as SensorState))
-  }
-
-  const deselectAllSensors = () => {
-    setSelectedSensors(Object.keys(selectedSensors).reduce((acc, key) => ({ ...acc, [key]: false }), {} as SensorState))
-  }
-
-  useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(new Date()), 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    let mounted = true
-
-    const fetchSensorData = async () => {
-      try {
-        const res = await fetch("/api/sensors", { cache: "no-store" })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const json = await res.json()
-
-        if (!json || json.status !== "success" || !json.data) {
-          if (mounted) setIsRaspiConnected(false)
-          return
-        }
-
-        const d = json.data
-        const last = SENSOR_TREND_DATA[SENSOR_TREND_DATA.length - 1]
-
-        const newPoint: SensorTrendRow = {
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
-          waterTemp: d.waterTemp ?? last.waterTemp,
-          ph: d.ph ?? last.ph,
-          airTemp: d.airTemp ?? last.airTemp,
-          lightIntensity: d.lightIntensity ?? last.lightIntensity,
-          waterLevel: d.waterLevel ?? last.waterLevel,
-          waterFlow: d.waterFlow ?? last.waterFlow,
-          humidity: d.humidity ?? last.humidity,
-          airPressure: d.airPressure ?? last.airPressure,
-        }
-
-        if (!mounted) return
-        setIsRaspiConnected(true)
-        setLatestReading(newPoint)
-        setLiveSensorData((prev) => [...prev, newPoint].slice(-MAX_SAMPLES))
-      } catch (err) {
-        console.error("❌ Failed to fetch sensor data:", err)
-        if (mounted) setIsRaspiConnected(false)
-      }
-    }
-
-    fetchSensorData()
-    const interval = setInterval(fetchSensorData, 5000)
-    return () => { mounted = false; clearInterval(interval) }
-  }, [])
-
-  const filteredSensorData = (() => {
-    if (liveSensorData.length > 0 && sensorExportRange === "24h") return liveSensorData.slice(-24)
-    switch (sensorExportRange) {
-      case "48h": {
-        const full48 = [...SENSOR_TREND_DATA, ...SENSOR_TREND_DATA]
-        return full48.map((entry, idx) => ({ ...entry, time: `Day ${Math.floor(idx / 24) + 1} - ${entry.time}` }))
-      }
-      case "7d": {
-        const full7 = Array(7).fill(SENSOR_TREND_DATA).flat()
-        return full7.map((entry, idx) => ({ ...entry, time: `Day ${Math.floor(idx / 24) + 1} - ${entry.time}` }))
-      }
-      case "custom": return SENSOR_TREND_DATA.slice(12)
-      case "24h":
-      default: return SENSOR_TREND_DATA
-    }
-  })()
-
-  /* RENDER */
   return (
     <div className="min-h-screen bg-gray-50 max-w-md mx-auto">
       <Navbar time={currentTime.toLocaleTimeString()} isConnected={isRaspiConnected} />
@@ -443,20 +379,18 @@ export default function Analytics() {
         </div>
 
         {/* 1. Live Sensor Readings Table */}
-        <SensorReadingsTable latestData={latestReading ?? SENSOR_TREND_DATA[SENSOR_TREND_DATA.length - 1]} currentTime={currentTime} isConnected={isRaspiConnected} />
+        <SensorReadingsTable latestData={latestReading} currentTime={currentTime} isConnected={isRaspiConnected} />
 
-        <div className="space-y-5">
-          {/* EXPORT ALL BUTTON */}
+        <div className="space-y-5 mt-5">
+
+          {/* EXPORT ALL */}
           <div className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-2xl p-4 border border-emerald-200">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-gray-900">Export Complete Analytics</h3>
                 <p className="text-xs text-gray-600 mt-1">Download all growth and sensor data in one file</p>
               </div>
-              <button
-                onClick={exportAllData}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors"
-              >
+              <button onClick={exportAllData} disabled={growthData.length === 0 && chartSensorData.length === 0} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors">
                 <Download className="w-4 h-4" />
                 Export All
               </button>
@@ -468,19 +402,11 @@ export default function Analytics() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-900">Weekly Plant Growth</h3>
               <div className="flex gap-2">
-                <button
-                  onClick={() => setShowGrowthFilters(!showGrowthFilters)}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-xs font-medium"
-                >
-                  <Filter className="w-3.5 h-3.5" />
-                  {showGrowthFilters ? "Hide" : "Filters"}
+                <button onClick={() => setShowGrowthFilters(!showGrowthFilters)} className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-xs font-medium">
+                  <Filter className="w-3.5 h-3.5" />{showGrowthFilters ? "Hide" : "Filters"}
                 </button>
-                <button
-                  onClick={exportGrowthDataCSV}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md text-xs font-medium"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Export
+                <button onClick={exportGrowthDataCSV} disabled={growthData.length === 0} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-md text-xs font-medium">
+                  <Download className="w-3.5 h-3.5" />Export
                 </button>
               </div>
             </div>
@@ -488,14 +414,9 @@ export default function Analytics() {
             {showGrowthFilters && (
               <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <label className="text-xs font-semibold text-gray-700 block mb-2">
-                  <Calendar className="w-3.5 h-3.5 inline mr-1" />
-                  Time Period
+                  <Calendar className="w-3.5 h-3.5 inline mr-1" />Time Period
                 </label>
-                <select
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  value={selectedRange}
-                  onChange={(e) => setSelectedRange(e.target.value)}
-                >
+                <select className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500" value={selectedRange} onChange={(e) => setSelectedRange(e.target.value)}>
                   <option value="thisWeek">This Week</option>
                   <option value="lastWeek">Last Week</option>
                   <option value="twoWeeks">Last 2 Weeks</option>
@@ -509,11 +430,7 @@ export default function Analytics() {
                       <input type="date" value={customGrowthEndDate} onChange={(e) => handleDateChange("growth", "end", e.target.value)} className="w-1/2 p-2 border border-gray-300 rounded-md text-sm" />
                     </div>
                     {dateWarning && <p className="text-xs text-red-600 font-medium mt-2">{dateWarning}</p>}
-                    <button
-                      onClick={() => applyCustomDateFilter("growth")}
-                      className={`w-full py-1.5 mt-2 text-sm font-semibold rounded-md transition-colors ${dateWarning ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-emerald-500 hover:bg-emerald-600 text-white"}`}
-                      disabled={!!dateWarning}
-                    >
+                    <button onClick={() => applyCustomDateFilter("growth")} disabled={!!dateWarning} className={`w-full py-1.5 mt-2 text-sm font-semibold rounded-md transition-colors ${dateWarning ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-emerald-500 hover:bg-emerald-600 text-white"}`}>
                       Apply Filter
                     </button>
                   </div>
@@ -521,70 +438,71 @@ export default function Analytics() {
               </div>
             )}
 
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={filteredGrowthData}>
-                  <defs>
-                    <linearGradient id="colorHeight" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="day" stroke="#9ca3af" />
-                  <YAxis stroke="#9ca3af" />
-                  <Tooltip contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px", color: "#fff", fontSize: "12px", padding: "8px 12px" }} />
-                  <Area type="monotone" dataKey="height" stroke="#10b981" fillOpacity={1} fill="url(#colorHeight)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <div className="bg-emerald-50 rounded-lg p-3 text-center">
-                <div className="text-xs text-gray-600">Current Height</div>
-                <div className="text-2xl font-bold text-emerald-600">{lastGrowth?.height ?? "—"}cm</div>
+            {growthLoading ? (
+              <div className="flex items-center justify-center h-56 gap-3 text-gray-400">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-500"></div>
+                <span className="text-sm">Loading growth data from Raspberry Pi...</span>
               </div>
-              <div className="bg-blue-50 rounded-lg p-3 text-center">
-                <div className="text-xs text-gray-600">Weekly Growth</div>
-                <div className="text-2xl font-bold text-blue-600">
-                  {filteredGrowthData.length > 1 ? `+${(lastGrowth.height - filteredGrowthData[0].height).toFixed(1)}cm` : "—"}
+            ) : growthData.length === 0 ? (
+              <div className="flex items-center justify-center h-56 text-gray-400 text-sm">
+                No growth data available. Check Raspberry Pi connection.
+              </div>
+            ) : (
+              <>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={growthData}>
+                      <defs>
+                        <linearGradient id="colorHeight" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="day" stroke="#9ca3af" />
+                      <YAxis stroke="#9ca3af" />
+                      <Tooltip contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px", color: "#fff", fontSize: "12px", padding: "8px 12px" }} />
+                      <Area type="monotone" dataKey="height" stroke="#10b981" fillOpacity={1} fill="url(#colorHeight)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
-              </div>
-            </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div className="bg-emerald-50 rounded-lg p-3 text-center">
+                    <div className="text-xs text-gray-600">Current Height</div>
+                    <div className="text-2xl font-bold text-emerald-600">{lastGrowth?.height ?? "—"}cm</div>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-3 text-center">
+                    <div className="text-xs text-gray-600">Weekly Growth</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {growthData.length > 1 ? `+${(lastGrowth.height - growthData[0].height).toFixed(1)}cm` : "—"}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* SENSOR TRENDS */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="flex justify-between mb-4">
-              <h3 className="font-bold text-gray-900">24-Hour Sensor Trends</h3>
-              <div className="flex gap-2"></div>
-              <button
-                onClick={() => setShowSensorFilters(!showSensorFilters)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-xs font-medium"
-              >
-                <Filter className="w-3.5 h-3.5" />
-                {showSensorFilters ? "Hide" : "Filters"}
-              </button>
-              <button
-                onClick={exportSensorDataCSV}
-                className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-xs font-medium"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Export
-              </button>
+              <h3 className="font-bold text-gray-900">Sensor Trends</h3>
+              <div className="flex gap-2">
+                <button onClick={() => setShowSensorFilters(!showSensorFilters)} className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-xs font-medium">
+                  <Filter className="w-3.5 h-3.5" />{showSensorFilters ? "Hide" : "Filters"}
+                </button>
+                <button onClick={exportSensorDataCSV} disabled={chartSensorData.length === 0} className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-md text-xs font-medium">
+                  <Download className="w-3.5 h-3.5" />Export
+                </button>
+              </div>
             </div>
 
             {showSensorFilters && (
               <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <label className="text-xs font-semibold text-gray-700 block mb-2">
-                  <Calendar className="w-3.5 h-3.5 inline mr-1" />
-                  Time Period
+                  <Calendar className="w-3.5 h-3.5 inline mr-1" />Time Period
                 </label>
-                <select
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={sensorExportRange}
-                  onChange={(e) => { setSensorExportRange(e.target.value); if (e.target.value !== "custom") setDateWarning("") }}
-                >
+                <select className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" value={sensorExportRange} onChange={(e) => { setSensorExportRange(e.target.value); if (e.target.value !== "custom") setDateWarning("") }}>
                   <option value="24h">Last 24 Hours</option>
                   <option value="48h">Last 48 Hours</option>
                   <option value="7d">Last 7 Days</option>
@@ -598,11 +516,7 @@ export default function Analytics() {
                       <input type="date" value={customSensorEndDate} onChange={(e) => handleDateChange("sensor", "end", e.target.value)} className="w-1/2 p-2 border border-gray-300 rounded-md text-sm" />
                     </div>
                     {dateWarning && <p className="text-xs text-red-600 font-medium mt-2">{dateWarning}</p>}
-                    <button
-                      onClick={() => applyCustomDateFilter("sensor")}
-                      className={`w-full py-1.5 mt-2 text-sm font-semibold rounded-md transition-colors ${dateWarning ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600 text-white"}`}
-                      disabled={!!dateWarning}
-                    >
+                    <button onClick={() => applyCustomDateFilter("sensor")} disabled={!!dateWarning} className={`w-full py-1.5 mt-2 text-sm font-semibold rounded-md transition-colors ${dateWarning ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600 text-white"}`}>
                       Apply Filter
                     </button>
                   </div>
@@ -620,12 +534,7 @@ export default function Analytics() {
               {localSensorConfig.map((sensor) => {
                 const active = selectedSensors[sensor.key]
                 return (
-                  <button
-                    key={sensor.key}
-                    onClick={() => toggleSensor(sensor.key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${active ? "bg-white text-gray-900 border-2 shadow-sm" : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"}`}
-                    style={{ borderColor: active ? sensor.color : undefined }}
-                  >
+                  <button key={sensor.key} onClick={() => toggleSensor(sensor.key)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${active ? "bg-white text-gray-900 border-2 shadow-sm" : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"}`} style={{ borderColor: active ? sensor.color : undefined }}>
                     <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: sensor.color }}></span>
                     {sensor.name}
                   </button>
@@ -633,23 +542,33 @@ export default function Analytics() {
               })}
             </div>
 
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={filteredSensorData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="time" stroke="#9ca3af" tick={{ fill: "#6b7280", fontSize: 11 }} interval={3} />
-                  <YAxis stroke="#9ca3af" tick={{ fill: "#6b7280", fontSize: 11 }} />
-                  <Tooltip contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px", color: "#fff", fontSize: "12px", padding: "8px 12px" }} />
-                  <Legend wrapperStyle={{ fontSize: "10px", paddingTop: 10 }} />
-                  {localSensorConfig.map(
-                    (sensor) =>
+            {sensorLoading ? (
+              <div className="flex items-center justify-center h-72 gap-3 text-gray-400">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <span className="text-sm">Loading sensor history...</span>
+              </div>
+            ) : chartSensorData.length === 0 ? (
+              <div className="flex items-center justify-center h-72 text-gray-400 text-sm">
+                No sensor history available. Check Raspberry Pi connection.
+              </div>
+            ) : (
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartSensorData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="time" stroke="#9ca3af" tick={{ fill: "#6b7280", fontSize: 11 }} interval={3} />
+                    <YAxis stroke="#9ca3af" tick={{ fill: "#6b7280", fontSize: 11 }} />
+                    <Tooltip contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px", color: "#fff", fontSize: "12px", padding: "8px 12px" }} />
+                    <Legend wrapperStyle={{ fontSize: "10px", paddingTop: 10 }} />
+                    {localSensorConfig.map((sensor) =>
                       selectedSensors[sensor.key] && (
                         <Line key={sensor.key} type="monotone" dataKey={sensor.key} stroke={sensor.color} strokeWidth={2.5} dot={false} name={sensor.name} activeDot={{ r: 5 }} />
                       )
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
 
           {/* HEALTH METRICS */}
@@ -659,20 +578,21 @@ export default function Analytics() {
                 <Fish className="w-5 h-5 text-blue-500" />
                 <span className="font-semibold text-gray-900">Fish Health</span>
               </div>
-              <div className="text-2xl font-bold text-emerald-600">
-                {(latestReading?.ph ?? SENSOR_TREND_DATA[SENSOR_TREND_DATA.length - 1].ph) >= 6.5 &&
-                 (latestReading?.ph ?? SENSOR_TREND_DATA[SENSOR_TREND_DATA.length - 1].ph) <= 7.5
-                  ? "Excellent" : "Good"}
-              </div>
-              <div className="text-xs text-gray-500 mt-2">
-                pH: {(latestReading?.ph ?? 6.8).toFixed(1)} • Temp: {(latestReading?.waterTemp ?? 22.7).toFixed(1)}°C
-              </div>
-              <div className="w-full h-1.5 bg-gray-200 rounded-full mt-3 overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500"
-                  style={{ width: `${calculateWaterQuality({ waterTemp: latestReading?.waterTemp ?? 22.7, ph: latestReading?.ph ?? 6.8 })}%` }}
-                ></div>
-              </div>
+              {!latestReading ? (
+                <div className="text-sm text-gray-400">No data</div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-emerald-600">
+                    {latestReading.ph >= 6.5 && latestReading.ph <= 7.5 ? "Excellent" : "Good"}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    pH: {latestReading.ph.toFixed(1)} • Temp: {latestReading.waterTemp.toFixed(1)}°C
+                  </div>
+                  <div className="w-full h-1.5 bg-gray-200 rounded-full mt-3 overflow-hidden">
+                    <div className="h-full bg-emerald-500" style={{ width: `${calculateWaterQuality({ waterTemp: latestReading.waterTemp, ph: latestReading.ph })}%` }}></div>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
@@ -680,28 +600,24 @@ export default function Analytics() {
                 <Droplets className="w-5 h-5 text-blue-500" />
                 <span className="font-semibold text-gray-900">Water Quality</span>
               </div>
-              <div className="text-2xl font-bold text-emerald-600">
-                {calculateWaterQuality({
-                  waterTemp: latestReading?.waterTemp ?? SENSOR_TREND_DATA[SENSOR_TREND_DATA.length - 1].waterTemp,
-                  ph: latestReading?.ph ?? SENSOR_TREND_DATA[SENSOR_TREND_DATA.length - 1].ph,
-                })}%
-              </div>
-              <div className="text-xs text-gray-500 mt-2">
-                pH: {(latestReading?.ph ?? 6.8).toFixed(1)} • Temp: {(latestReading?.waterTemp ?? 22.7).toFixed(1)}°C
-              </div>
-              <div className="w-full h-1.5 bg-gray-200 rounded-full mt-3 overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500"
-                  style={{
-                    width: `${calculateWaterQuality({
-                      waterTemp: latestReading?.waterTemp ?? SENSOR_TREND_DATA[SENSOR_TREND_DATA.length - 1].waterTemp,
-                      ph: latestReading?.ph ?? SENSOR_TREND_DATA[SENSOR_TREND_DATA.length - 1].ph,
-                    })}%`,
-                  }}
-                ></div>
-              </div>
+              {!latestReading ? (
+                <div className="text-sm text-gray-400">No data</div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-emerald-600">
+                    {calculateWaterQuality({ waterTemp: latestReading.waterTemp, ph: latestReading.ph })}%
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    pH: {latestReading.ph.toFixed(1)} • Temp: {latestReading.waterTemp.toFixed(1)}°C
+                  </div>
+                  <div className="w-full h-1.5 bg-gray-200 rounded-full mt-3 overflow-hidden">
+                    <div className="h-full bg-emerald-500" style={{ width: `${calculateWaterQuality({ waterTemp: latestReading.waterTemp, ph: latestReading.ph })}%` }}></div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
+
         </div>
       </div>
 
