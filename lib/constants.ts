@@ -27,10 +27,10 @@ export const AUTOMATION_PRESETS = [
 ]
 
 export const PLANT_DETECTIONS = [
-  { name: "Kale Plant #1", status: "Healthy" as const, color: "emerald" as const },
-  { name: "Kale Plant #2", status: "Growing" as const, color: "emerald" as const },
-  { name: "Kale Plant #3", status: "Monitor" as const, color: "amber" as const },
-  { name: "Kale Plant #4", status: "Ready Soon" as const, color: "emerald" as const },
+  { name: "Kale Plant #1", status: "Healthy" as const, color: "emerald" as const, leafCount: 8 },
+  { name: "Kale Plant #2", status: "Growing" as const, color: "emerald" as const, leafCount: 6 },
+  { name: "Kale Plant #3", status: "Monitor" as const, color: "amber" as const, leafCount: 4 },
+  { name: "Kale Plant #4", status: "Ready Soon" as const, color: "emerald" as const, leafCount: 11 },
 ]
 
 export const WEEKLY_GROWTH_DATA = [
