@@ -40,7 +40,6 @@ interface SensorCardProps {
 interface SensorDataState {
   waterTemp: number;
   ph: number;
-  waterLevel: number;
   waterFlow: number;
   humidity: number;
   lightIntensity: number;
@@ -80,7 +79,6 @@ const INITIAL_THRESHOLDS: ThresholdState = {
 const INITIAL_SENSOR_DATA: SensorDataState = {
   waterTemp: 23.2,
   ph: 6.8,
-  waterLevel: 85,
   waterFlow: 4.5,
   humidity: 65,
   lightIntensity: 15000,
@@ -182,17 +180,6 @@ const generateAlerts = (data: SensorDataState, thresholds: ThresholdState): Aler
 
   checkParam("Water Temp", data.waterTemp, thresholds.waterTemp.min, thresholds.waterTemp.max, "°C")
   checkParam("pH Level", data.ph, thresholds.ph.min, thresholds.ph.max, "")
-
-  if (data.waterLevel < 75) {
-    newAlerts.push({
-      id: alertIdCounter++,
-      type: "warning",
-      severity: "medium",
-      title: "Water Level Low",
-      message: `Water reservoir is at ${data.waterLevel.toFixed(0)}%. Consider checking auto-fill or adding water.`,
-      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-    })
-  }
 
   if (newAlerts.length === 0) {
     newAlerts.push({
@@ -688,7 +675,6 @@ export default function Dashboard() {
         <div>
           <h2 className="text-sm font-bold text-gray-900 mb-3 px-1">System Metrics</h2>
           <div className="grid grid-cols-2 gap-3">
-            <SensorCard icon={Waves} title="Water Level" value={Math.round(sensorData.waterLevel)} unit="%" min={70} max={100} color="bg-cyan-500" />
             <SensorCard icon={Gauge} title="Flow Rate" value={sensorData.waterFlow} unit="L/min" min={3} max={6} color="bg-indigo-500" />
             <SensorCard icon={Zap} title="Light Level" value={sensorData.lightIntensity} unit="lux" min={10000} max={20000} color="bg-yellow-500" />
             <SensorCard icon={Wind} title="Humidity" value={sensorData.humidity} unit="%" min={50} max={80} color="bg-sky-500" />
@@ -709,4 +695,4 @@ export default function Dashboard() {
       )}
     </div>
   )
-}
+} 
