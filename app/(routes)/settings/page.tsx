@@ -896,7 +896,7 @@ export default function SettingsPage() {
                 disabled={controlMode === 'AUTOMATIC'}
               />
               <ControlToggle 
-                label="DC Fan"  
+                label="DC Fan" 
                 description="Air circulation & cooling" 
                 icon={Wind} 
                 active={controls.fan} 

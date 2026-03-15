@@ -1,4 +1,5 @@
 import type React from "react"
+
 export interface SensorData {
   airTemp: number
   waterTemp: number
@@ -6,17 +7,13 @@ export interface SensorData {
   ph: number
   waterLevel: number
   waterFlow: number
-  ammonia: number
-  nitrates: number
-  dissolvedO2: number
   lightIntensity: number
 }
 
 export interface SystemControls {
   pump: boolean
   fan: boolean
-  phAdjustment: boolean
-  aerator: boolean
+  growLight: boolean
 }
 
 export interface AlertNotification {
@@ -38,9 +35,13 @@ export interface GrowthData {
 
 export interface SensorTrend {
   time: string
-  temp: number
+  airTemp: number
+  waterTemp: number
   ph: number
-  do: number
+  lightIntensity: number
+  waterLevel: number
+  waterFlow: number
+  humidity: number
 }
 
 export interface AutomationPreset {
