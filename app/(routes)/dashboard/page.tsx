@@ -11,8 +11,6 @@ import { usePathname } from "next/navigation"
 interface SystemControls {
   pump: boolean;
   fan: boolean;
-  phAdjustment: boolean;
-  aerator: boolean;
   growLight: boolean;
 }
 
@@ -24,8 +22,6 @@ interface ThresholdState {
 interface ControlState {
   pump: boolean;
   fan: boolean;
-  phAdjustment: boolean;
-  aerator: boolean;
   growLight: boolean;
 }
 
@@ -70,8 +66,6 @@ interface ControlToggleProps {
 const INITIAL_CONTROLS_FULL: SystemControls = {
   pump: true,
   fan: false,
-  phAdjustment: true,
-  aerator: true,
   growLight: true
 }
 
@@ -415,10 +409,8 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="space-y-3">
-            <ControlToggle label="Submersible Pump" icon={Waves} active={localControls.pump} onChange={val => handleLocalControlChange('pump', val)} />
+            <ControlToggle label="Dosing Pump" icon={Waves} active={localControls.pump} onChange={val => handleLocalControlChange('pump', val)} />
             <ControlToggle label="DC Fan" icon={Wind} active={localControls.fan} onChange={val => handleLocalControlChange('fan', val)} />
-            <ControlToggle label="pH Adjustment" icon={Droplets} active={localControls.phAdjustment} onChange={val => handleLocalControlChange('phAdjustment', val)} />
-            <ControlToggle label="Aerator" icon={Activity} active={localControls.aerator} onChange={val => handleLocalControlChange('aerator', val)} />
             <ControlToggle label="Grow Light" icon={Sun} active={localControls.growLight} onChange={val => handleLocalControlChange('growLight', val)} />
           </div>
           <button onClick={handleQuickControlsSave} className="w-full mt-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors">
