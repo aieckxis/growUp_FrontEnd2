@@ -4,7 +4,6 @@ import { Camera, X, Download, Trash2, Home, BarChart3, Settings } from "lucide-r
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { PLANT_DETECTIONS } from "@/lib/constants"
 
 /* ─── TYPES ─────────────────────────────────────────────────────────────── */
 
@@ -259,9 +258,8 @@ export default function CameraPage() {
   const [streamLoading, setStreamLoading] = useState(true)
   const imgRef = useRef<HTMLImageElement>(null)
 
-  /* detections — starts with mock data, replaced by live API if available */
-  const [detections, setDetections] = useState<PlantDetection[]>(PLANT_DETECTIONS)
-  const [isLiveDetection, setIsLiveDetection] = useState(false)
+  /* detections */
+  const [detections, setDetections] = useState<PlantDetection[]>([])
 
   /* snapshots */
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
@@ -280,18 +278,12 @@ export default function CameraPage() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [recordingDuration, setRecordingDuration] = useState(0)
 
-  /* ── fetch plant detections — fallback to mock if API fails ── */
+  /* ── fetch plant detections from live API ── */
   useEffect(() => {
     apiGet<{ detections: PlantDetection[] }>("/ai/detections")
-      .then(({ detections: d }) => {
-        if (d && d.length > 0) {
-          setDetections(d)
-          setIsLiveDetection(true)
-        }
-        // if API returns empty, keep mock data
-      })
+      .then(({ detections: d }) => setDetections(d))
       .catch(() => {
-        // silently fall back to mock data already set in useState
+        /* silently fail – detections panel stays empty */
       })
   }, [])
 
@@ -506,62 +498,63 @@ export default function CameraPage() {
         {/* ── AI PLANT HEALTH + LEAF COUNT ── */}
         <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
           <div className="flex items-center justify-between border-b pb-2 mb-4">
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-lg text-gray-900">
-                <span className="text-emerald-500">AI</span> Plant Health Status
-              </h3>
-              {!isLiveDetection && (
-                <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-semibold">
-                  Mock Data
+            <h3 className="font-bold text-lg text-gray-900">
+              <span className="text-emerald-500">AI</span> Plant Health Status
+            </h3>
+            {detections.length > 0 && (
+              <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                <span className="text-base">🌿</span>
+                <span className="text-xs font-bold text-emerald-700">
+                  {totalLeaves} leaves total
                 </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-              <span className="text-base">🌿</span>
-              <span className="text-xs font-bold text-emerald-700">
-                {totalLeaves} leaves total
-              </span>
-            </div>
+              </div>
+            )}
           </div>
 
-          <div className="space-y-3">
-            {detections.map((plant, i) => (
-              <div
-                key={i}
-                className={`flex items-center justify-between p-3 rounded-xl ${
-                  plant.color === "emerald"
-                    ? "bg-emerald-50 border border-emerald-200"
-                    : "bg-amber-50 border border-amber-200"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                      plant.color === "emerald" ? "bg-emerald-500" : "bg-amber-500"
-                    }`}
-                  />
-                  <span className="font-medium text-gray-900 text-sm">{plant.name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 bg-white border border-gray-200 px-2 py-0.5 rounded-lg">
-                    <span className="text-xs">🌿</span>
-                    <span className="text-xs font-semibold text-gray-700">
-                      {plant.leafCount !== undefined ? plant.leafCount : "—"}
+          {detections.length === 0 ? (
+            <p className="text-center text-gray-400 py-4 text-sm">
+              No detections available. Ensure the AI service is running.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {detections.map((plant, i) => (
+                <div
+                  key={i}
+                  className={`flex items-center justify-between p-3 rounded-xl ${
+                    plant.color === "emerald"
+                      ? "bg-emerald-50 border border-emerald-200"
+                      : "bg-amber-50 border border-amber-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                        plant.color === "emerald" ? "bg-emerald-500" : "bg-amber-500"
+                      }`}
+                    />
+                    <span className="font-medium text-gray-900 text-sm">{plant.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 bg-white border border-gray-200 px-2 py-0.5 rounded-lg">
+                      <span className="text-xs">🌿</span>
+                      <span className="text-xs font-semibold text-gray-700">
+                        {plant.leafCount !== undefined ? plant.leafCount : "—"}
+                      </span>
+                    </div>
+                    <span
+                      className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                        plant.color === "emerald"
+                          ? "text-emerald-800 bg-emerald-200"
+                          : "text-amber-800 bg-amber-200"
+                      }`}
+                    >
+                      {plant.status}
                     </span>
                   </div>
-                  <span
-                    className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                      plant.color === "emerald"
-                        ? "text-emerald-800 bg-emerald-200"
-                        : "text-amber-800 bg-amber-200"
-                    }`}
-                  >
-                    {plant.status}
-                  </span>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── ACTION CENTER ── */}
@@ -656,105 +649,53 @@ export default function CameraPage() {
           <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between z-10 rounded-t-2xl">
               <h2 className="text-xl font-bold text-gray-900">Camera Settings</h2>
-              <button
-                onClick={() => setShowSettings(false)}
-                className="text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full"
-              >
+              <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full">
                 <X className="w-6 h-6" />
               </button>
             </div>
             <div className="p-4 space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Resolution</label>
-                <select
-                  value={settings.resolution}
-                  onChange={(e) => handleSettingChange("resolution", e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-emerald-500 focus:border-emerald-500"
-                >
+                <select value={settings.resolution} onChange={(e) => handleSettingChange("resolution", e.target.value)} className="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-emerald-500 focus:border-emerald-500">
                   <option value="720p">720p (HD)</option>
                   <option value="1080p">1080p (Full HD)</option>
                 </select>
               </div>
-
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Frame Rate (FPS)</label>
-                <select
-                  value={settings.fps}
-                  onChange={(e) => handleSettingChange("fps", Number(e.target.value))}
-                  className="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-emerald-500 focus:border-emerald-500"
-                >
+                <select value={settings.fps} onChange={(e) => handleSettingChange("fps", Number(e.target.value))} className="w-full p-3 border border-gray-300 rounded-xl bg-white focus:ring-emerald-500 focus:border-emerald-500">
                   <option value={15}>15 FPS</option>
                   <option value={30}>30 FPS</option>
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Brightness: <span className="text-emerald-600 font-bold">{settings.brightness}%</span>
-                </label>
-                <input
-                  type="range" min="0" max="100" value={settings.brightness}
-                  onChange={(e) => handleSettingChange("brightness", Number(e.target.value))}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                />
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Brightness: <span className="text-emerald-600 font-bold">{settings.brightness}%</span></label>
+                <input type="range" min="0" max="100" value={settings.brightness} onChange={(e) => handleSettingChange("brightness", Number(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
               </div>
-
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Contrast: <span className="text-emerald-600 font-bold">{settings.contrast}%</span>
-                </label>
-                <input
-                  type="range" min="0" max="100" value={settings.contrast}
-                  onChange={(e) => handleSettingChange("contrast", Number(e.target.value))}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                />
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Contrast: <span className="text-emerald-600 font-bold">{settings.contrast}%</span></label>
+                <input type="range" min="0" max="100" value={settings.contrast} onChange={(e) => handleSettingChange("contrast", Number(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
               </div>
-
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  AI Detection Sensitivity: <span className="text-emerald-600 font-bold">{settings.detectionSensitivity}%</span>
-                </label>
-                <input
-                  type="range" min="0" max="100" value={settings.detectionSensitivity}
-                  onChange={(e) => handleSettingChange("detectionSensitivity", Number(e.target.value))}
-                  className="w-full h-2 bg-emerald-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Higher sensitivity detects more plants but may increase false positives.
-                </p>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">AI Detection Sensitivity: <span className="text-emerald-600 font-bold">{settings.detectionSensitivity}%</span></label>
+                <input type="range" min="0" max="100" value={settings.detectionSensitivity} onChange={(e) => handleSettingChange("detectionSensitivity", Number(e.target.value))} className="w-full h-2 bg-emerald-200 rounded-lg appearance-none cursor-pointer accent-emerald-600" />
+                <p className="text-xs text-gray-500 mt-1">Higher sensitivity detects more plants but may increase false positives.</p>
               </div>
-
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
                 <div>
                   <div className="font-semibold text-gray-900">Motion Detection</div>
                   <div className="text-xs text-gray-500">Alert on movement detection</div>
                 </div>
                 <label className="relative inline-block w-12 h-6">
-                  <input
-                    type="checkbox" checked={settings.motionDetection}
-                    onChange={(e) => handleSettingChange("motionDetection", e.target.checked)}
-                    className="sr-only peer"
-                  />
+                  <input type="checkbox" checked={settings.motionDetection} onChange={(e) => handleSettingChange("motionDetection", e.target.checked)} className="sr-only peer" />
                   <div className="w-12 h-6 bg-gray-300 rounded-full peer peer-checked:after:translate-x-6 peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" />
                 </label>
               </div>
-
               <div className="space-y-3 pt-2">
-                <button
-                  onClick={handleSaveSettings}
-                  disabled={!hasChanges}
-                  className={`w-full p-4 font-bold rounded-xl transition-colors shadow-lg active:scale-[0.99] ${
-                    hasChanges
-                      ? "bg-emerald-500 hover:bg-emerald-600 text-white"
-                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  }`}
-                >
+                <button onClick={handleSaveSettings} disabled={!hasChanges} className={`w-full p-4 font-bold rounded-xl transition-colors shadow-lg active:scale-[0.99] ${hasChanges ? "bg-emerald-500 hover:bg-emerald-600 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}>
                   {hasChanges ? "Save Changes" : "Settings Synced"}
                 </button>
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="w-full p-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-colors active:scale-[0.99]"
-                >
+                <button onClick={() => setShowSettings(false)} className="w-full p-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-colors active:scale-[0.99]">
                   Close
                 </button>
               </div>
@@ -772,10 +713,7 @@ export default function CameraPage() {
                 <h2 className="text-xl font-bold text-gray-900">Snapshot Gallery</h2>
                 <p className="text-sm text-gray-500">Captured photos from the Raspberry Pi</p>
               </div>
-              <button
-                onClick={() => setShowGallery(false)}
-                className="text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full"
-              >
+              <button onClick={() => setShowGallery(false)} className="text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full">
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -786,24 +724,13 @@ export default function CameraPage() {
                   <p className="text-sm">Loading snapshots…</p>
                 </div>
               ) : snapshots.length === 0 ? (
-                <p className="text-center text-gray-400 py-10 text-sm">
-                  No snapshots yet. Capture one from the camera view!
-                </p>
+                <p className="text-center text-gray-400 py-10 text-sm">No snapshots yet. Capture one from the camera view!</p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {snapshots.map((snapshot) => (
-                    <div
-                      key={snapshot.id}
-                      onClick={() => setSelectedSnapshot(snapshot)}
-                      className="bg-gray-100 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-emerald-400 transition-all cursor-pointer shadow-md"
-                    >
+                    <div key={snapshot.id} onClick={() => setSelectedSnapshot(snapshot)} className="bg-gray-100 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-emerald-400 transition-all cursor-pointer shadow-md">
                       <div className="aspect-square bg-gray-200 overflow-hidden">
-                        <img
-                          src={snapshot.url}
-                          alt={`Snapshot ${snapshot.date}`}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
+                        <img src={snapshot.url} alt={`Snapshot ${snapshot.date}`} className="w-full h-full object-cover" loading="lazy" />
                       </div>
                       <div className="p-3 bg-white">
                         <div className="font-semibold text-gray-900 text-sm">{snapshot.date}</div>
@@ -813,10 +740,7 @@ export default function CameraPage() {
                   ))}
                 </div>
               )}
-              <button
-                onClick={() => setShowGallery(false)}
-                className="w-full mt-4 p-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-colors active:scale-[0.99]"
-              >
+              <button onClick={() => setShowGallery(false)} className="w-full mt-4 p-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-colors active:scale-[0.99]">
                 Close Gallery
               </button>
             </div>
@@ -829,50 +753,29 @@ export default function CameraPage() {
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
           <div className="max-w-md w-full h-full max-h-[95vh] flex flex-col">
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
-              <button
-                onClick={() => setSelectedSnapshot(null)}
-                className="flex items-center gap-2 text-white hover:text-emerald-400 transition-colors font-semibold"
-              >
+              <button onClick={() => setSelectedSnapshot(null)} className="flex items-center gap-2 text-white hover:text-emerald-400 transition-colors font-semibold">
                 <span className="text-2xl">←</span> Back to Gallery
               </button>
-              <button
-                onClick={() => { setSelectedSnapshot(null); setShowGallery(false) }}
-                className="text-white hover:text-red-500 transition-colors p-2 rounded-full"
-              >
+              <button onClick={() => { setSelectedSnapshot(null); setShowGallery(false) }} className="text-white hover:text-red-500 transition-colors p-2 rounded-full">
                 <X className="w-8 h-8" />
               </button>
             </div>
             <div className="bg-white rounded-2xl shadow-2xl overflow-y-auto flex-grow min-h-0">
               <div className="aspect-square bg-gray-200 overflow-hidden">
-                <img
-                  src={selectedSnapshot.url}
-                  alt={`Snapshot ${selectedSnapshot.date}`}
-                  className="w-full h-full object-cover"
-                />
+                <img src={selectedSnapshot.url} alt={`Snapshot ${selectedSnapshot.date}`} className="w-full h-full object-cover" />
               </div>
               <div className="p-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-1">
-                  Snapshot — {selectedSnapshot.date}
-                </h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">Snapshot — {selectedSnapshot.date}</h3>
                 <p className="text-gray-500 mb-4">Captured at {selectedSnapshot.time}</p>
                 <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => handleDownload(selectedSnapshot)}
-                    className="p-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-[0.98]"
-                  >
+                  <button onClick={() => handleDownload(selectedSnapshot)} className="p-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-[0.98]">
                     <Download className="w-5 h-5" /> Download
                   </button>
-                  <button
-                    onClick={handleDelete}
-                    className="p-4 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-[0.98]"
-                  >
+                  <button onClick={handleDelete} className="p-4 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-[0.98]">
                     <Trash2 className="w-5 h-5" /> Delete
                   </button>
                 </div>
-                <button
-                  onClick={() => { setSelectedSnapshot(null); setShowGallery(false) }}
-                  className="w-full mt-4 p-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-colors active:scale-[0.99]"
-                >
+                <button onClick={() => { setSelectedSnapshot(null); setShowGallery(false) }} className="w-full mt-4 p-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-colors active:scale-[0.99]">
                   Close &amp; Exit
                 </button>
               </div>
