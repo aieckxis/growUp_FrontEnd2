@@ -785,4 +785,4 @@ export default function CameraPage() {
       )}
     </div>
   )
-}
+} 
