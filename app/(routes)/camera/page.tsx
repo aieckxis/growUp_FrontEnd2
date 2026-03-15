@@ -4,6 +4,7 @@ import { Camera, X, Download, Trash2, Home, BarChart3, Settings } from "lucide-r
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { PLANT_DETECTIONS } from "@/lib/constants"
 
 /* ─── TYPES ─────────────────────────────────────────────────────────────── */
 
@@ -12,6 +13,7 @@ interface PlantDetection {
   status: string
   color: "emerald" | "amber"
   leafCount?: number
+  height?: number
 }
 
 interface Snapshot {
@@ -172,9 +174,7 @@ const Toast: React.FC<ToastProps> = ({ message, visible, color, onClose }) => {
     default: "bg-gray-800",
   }
   return (
-    <div
-      className={`fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-xl shadow-2xl z-[100] text-white ${palette[color]}`}
-    >
+    <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-xl shadow-2xl z-[100] text-white ${palette[color]}`}>
       <span className="font-medium">{message}</span>
       <button onClick={onClose} className="p-1 rounded-full hover:bg-white/20">
         <X className="w-4 h-4" />
@@ -196,10 +196,10 @@ const Navbar: React.FC<{ time: string }> = ({ time }) => (
 const BottomNavigation = () => {
   const pathname = usePathname()
   const tabs = [
-    { id: "dashboard", label: "Home", href: "/dashboard", icon: Home },
+    { id: "dashboard", label: "Home",      href: "/dashboard", icon: Home },
     { id: "analytics", label: "Analytics", href: "/analytics", icon: BarChart3 },
-    { id: "camera", label: "Camera", href: "/camera", icon: Camera },
-    { id: "settings", label: "Settings", href: "/settings", icon: Settings },
+    { id: "camera",    label: "Camera",    href: "/camera",    icon: Camera },
+    { id: "settings",  label: "Settings",  href: "/settings",  icon: Settings },
   ]
   return (
     <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200 shadow-lg z-50">
@@ -207,13 +207,7 @@ const BottomNavigation = () => {
         {tabs.map(({ id, label, href, icon: Icon }) => {
           const active = pathname?.startsWith(href)
           return (
-            <Link
-              key={id}
-              href={href}
-              className={`flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
-                active ? "text-emerald-600 bg-emerald-50" : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
+            <Link key={id} href={href} className={`flex flex-col items-center py-2 px-4 rounded-lg transition-all ${active ? "text-emerald-600 bg-emerald-50" : "text-gray-500 hover:text-gray-700"}`}>
               <Icon className="w-5 h-5 mb-1" />
               <span className="text-xs font-semibold">{label}</span>
             </Link>
@@ -227,12 +221,7 @@ const BottomNavigation = () => {
 /* ─── MAIN PAGE ──────────────────────────────────────────────────────────── */
 
 export default function CameraPage() {
-  /* toast */
-  const [toast, setToast] = useState<{
-    message: string
-    visible: boolean
-    color: ToastProps["color"]
-  }>({ message: "", visible: false, color: "info" })
+  const [toast, setToast] = useState<{ message: string; visible: boolean; color: ToastProps["color"] }>({ message: "", visible: false, color: "info" })
 
   const showToast = useCallback(
     (message: string, color: ToastProps["color"] = "info") => {
@@ -242,81 +231,55 @@ export default function CameraPage() {
     []
   )
 
-  /* camera hook */
-  const {
-    settings,
-    isRecording,
-    isLoading,
-    hasChanges,
-    handleSettingChange,
-    handleSave,
-    handleToggleRecord,
-  } = useCameraSettings(showToast)
+  const { settings, isRecording, isLoading, hasChanges, handleSettingChange, handleSave, handleToggleRecord } = useCameraSettings(showToast)
 
-  /* stream */
   const [streamError, setStreamError] = useState(false)
   const [streamLoading, setStreamLoading] = useState(true)
   const imgRef = useRef<HTMLImageElement>(null)
 
-  /* detections */
-  const [detections, setDetections] = useState<PlantDetection[]>([])
+  /* detections — starts with mock, replaced by live API if available */
+  const [detections, setDetections] = useState<PlantDetection[]>(PLANT_DETECTIONS)
+  const [isLiveDetection, setIsLiveDetection] = useState(false)
 
-  /* snapshots */
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [snapshotsLoading, setSnapshotsLoading] = useState(false)
-
-  /* modals */
   const [showSettings, setShowSettings] = useState(false)
   const [showGallery, setShowGallery] = useState(false)
   const [selectedSnapshot, setSelectedSnapshot] = useState<Snapshot | null>(null)
-
-  /* zoom */
   const [zoomLevel, setZoomLevel] = useState(1.0)
   const [showZoomControls, setShowZoomControls] = useState(false)
-
-  /* clock & recording timer */
   const [currentTime, setCurrentTime] = useState(new Date())
   const [recordingDuration, setRecordingDuration] = useState(0)
 
-  /* ── fetch plant detections from live API ── */
+  /* ── fetch plant detections — fallback to mock if API fails ── */
   useEffect(() => {
     apiGet<{ detections: PlantDetection[] }>("/ai/detections")
-      .then(({ detections: d }) => setDetections(d))
+      .then(({ detections: d }) => {
+        if (d && d.length > 0) {
+          setDetections(d)
+          setIsLiveDetection(true)
+        }
+        // if empty, keep mock data
+      })
       .catch(() => {
-        /* silently fail – detections panel stays empty */
+        // silently fall back to mock data already set in useState
       })
   }, [])
 
-  /* ── clock + recording counter ── */
   useEffect(() => {
     const clockId = setInterval(() => setCurrentTime(new Date()), 1000)
     let recId: NodeJS.Timeout | null = null
     if (isRecording) {
       recId = setInterval(() => setRecordingDuration((d) => d + 1), 1000)
     } else if (recordingDuration > 0) {
-      if (recordingDuration < 3)
-        showToast("Recording too short – file discarded.", "warning")
+      if (recordingDuration < 3) showToast("Recording too short – file discarded.", "warning")
       setRecordingDuration(0)
     }
-    return () => {
-      clearInterval(clockId)
-      if (recId) clearInterval(recId)
-    }
+    return () => { clearInterval(clockId); if (recId) clearInterval(recId) }
   }, [isRecording, recordingDuration, showToast])
 
-  /* ── handlers ── */
-  const handleStreamLoad = () => {
-    setStreamLoading(false)
-    setStreamError(false)
-    showToast("📹 Video stream connected!", "success")
-  }
-
-  const handleStreamError = () => {
-    setStreamLoading(false)
-    setStreamError(true)
-    showToast("⚠️ Cannot connect to camera stream. Check Raspberry Pi.", "error")
-  }
-
+  const handleStreamLoad = () => { setStreamLoading(false); setStreamError(false); showToast("📹 Video stream connected!", "success") }
+  const handleStreamError = () => { setStreamLoading(false); setStreamError(true); showToast("⚠️ Cannot connect to camera stream. Check Raspberry Pi.", "error") }
   const handleRecord = () => handleToggleRecord(!isRecording)
 
   const handleSnapshot = async () => {
@@ -324,43 +287,24 @@ export default function CameraPage() {
     try {
       const data = await apiPost<{ id: number; url: string }>("/camera/snapshot")
       const now = new Date()
-      setSnapshots((prev) => [
-        {
-          id: data.id,
-          url: data.url,
-          date: now.toISOString().split("T")[0],
-          time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        },
-        ...prev,
-      ])
+      setSnapshots((prev) => [{ id: data.id, url: data.url, date: now.toISOString().split("T")[0], time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }, ...prev])
       showToast("✅ Snapshot saved to gallery!", "success")
-    } catch {
-      showToast("❌ Failed to capture snapshot.", "error")
-    }
+    } catch { showToast("❌ Failed to capture snapshot.", "error") }
   }
 
   const openGallery = async () => {
-    setShowGallery(true)
-    setSnapshotsLoading(true)
+    setShowGallery(true); setSnapshotsLoading(true)
     try {
       const data = await apiGet<{ snapshots: Snapshot[] }>("/camera/snapshots")
       setSnapshots(data.snapshots)
-    } catch {
-      showToast("⚠️ Could not load gallery from Raspberry Pi.", "warning")
-    } finally {
-      setSnapshotsLoading(false)
-    }
+    } catch { showToast("⚠️ Could not load gallery from Raspberry Pi.", "warning") }
+    finally { setSnapshotsLoading(false) }
   }
 
   const handleDownload = (snapshot: Snapshot) => {
     const a = document.createElement("a")
-    a.href = snapshot.url
-    a.download = `snapshot_${snapshot.id}_${snapshot.date}.jpg`
-    a.target = "_blank"
-    a.rel = "noopener noreferrer"
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+    a.href = snapshot.url; a.download = `snapshot_${snapshot.id}_${snapshot.date}.jpg`; a.target = "_blank"; a.rel = "noopener noreferrer"
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
     showToast(`⬇️ Downloading snapshot ${snapshot.date}`, "success")
   }
 
@@ -369,19 +313,12 @@ export default function CameraPage() {
     try {
       await apiDelete(`/camera/snapshot/${selectedSnapshot.id}`)
       setSnapshots((prev) => prev.filter((s) => s.id !== selectedSnapshot.id))
-      showToast("🗑️ Snapshot deleted.", "warning")
-      setSelectedSnapshot(null)
-    } catch {
-      showToast("❌ Failed to delete snapshot.", "error")
-    }
+      showToast("🗑️ Snapshot deleted.", "warning"); setSelectedSnapshot(null)
+    } catch { showToast("❌ Failed to delete snapshot.", "error") }
   }
 
-  const handleSaveSettings = async () => {
-    const ok = await handleSave()
-    if (ok) setShowSettings(false)
-  }
+  const handleSaveSettings = async () => { const ok = await handleSave(); if (ok) setShowSettings(false) }
 
-  /* ── loading screen ── */
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center max-w-md mx-auto bg-gray-50">
@@ -393,10 +330,8 @@ export default function CameraPage() {
     )
   }
 
-  /* ── total leaf count ── */
   const totalLeaves = detections.reduce((sum, p) => sum + (p.leafCount ?? 0), 0)
 
-  /* ─── RENDER ─────────────────────────────────────────────────────────── */
   return (
     <div className="min-h-screen bg-gray-50 max-w-md mx-auto">
       <Navbar time={currentTime.toLocaleTimeString()} />
@@ -404,26 +339,14 @@ export default function CameraPage() {
       <div className="space-y-5 pb-24 px-4 py-5">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-800 pt-2">Camera Monitor</h1>
-          <p className="text-gray-500 mt-1">
-            Real-time surveillance and health analysis for your Kale Tower.
-          </p>
+          <p className="text-gray-500 mt-1">Real-time surveillance and health analysis for your Kale Tower.</p>
         </div>
 
         {/* ── LIVE VIDEO STREAM ── */}
         <div className="bg-gray-900 rounded-2xl aspect-square relative overflow-hidden shadow-xl">
-          <div
-            className="absolute inset-0 transition-transform duration-300 ease-in-out"
-            style={{ transform: `scale(${zoomLevel})` }}
-          >
+          <div className="absolute inset-0 transition-transform duration-300 ease-in-out" style={{ transform: `scale(${zoomLevel})` }}>
             {!streamError ? (
-              <img
-                ref={imgRef}
-                src={VIDEO_STREAM_URL}
-                alt="Live Kale Tower Feed"
-                className="w-full h-full object-cover"
-                onLoad={handleStreamLoad}
-                onError={handleStreamError}
-              />
+              <img ref={imgRef} src={VIDEO_STREAM_URL} alt="Live Kale Tower Feed" className="w-full h-full object-cover" onLoad={handleStreamLoad} onError={handleStreamError} />
             ) : (
               <div className="absolute inset-0 bg-gradient-to-br from-red-900/30 to-orange-900/30 flex items-center justify-center">
                 <div className="text-center text-white p-6">
@@ -434,7 +357,6 @@ export default function CameraPage() {
                 </div>
               </div>
             )}
-
             {streamLoading && !streamError && (
               <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
                 <div className="text-center text-white">
@@ -443,31 +365,15 @@ export default function CameraPage() {
                 </div>
               </div>
             )}
-
             {isRecording && (
               <div className="absolute top-4 left-4 bg-red-600/90 text-white px-3 py-1 rounded-xl font-bold text-sm shadow-md backdrop-blur-sm z-10">
                 REC {formatDuration(recordingDuration)}
               </div>
             )}
-
-            <div
-              className={`absolute top-4 right-4 w-4 h-4 rounded-full shadow-md z-10 ${
-                isRecording
-                  ? "bg-red-600 animate-pulse"
-                  : streamError
-                  ? "bg-gray-500"
-                  : "bg-green-500"
-              }`}
-            />
-
+            <div className={`absolute top-4 right-4 w-4 h-4 rounded-full shadow-md z-10 ${isRecording ? "bg-red-600 animate-pulse" : streamError ? "bg-gray-500" : "bg-green-500"}`} />
             <div className="absolute bottom-4 left-4 bg-black/70 px-3 py-2 rounded-lg text-white backdrop-blur-sm z-10">
-              <div className="text-sm font-semibold font-mono">
-                {currentTime.toLocaleTimeString()}
-              </div>
-              <div className="text-xs text-gray-300">
-                {settings.resolution} • {settings.fps}fps •{" "}
-                {isRecording ? "Recording" : streamError ? "Offline" : "Live"}
-              </div>
+              <div className="text-sm font-semibold font-mono">{currentTime.toLocaleTimeString()}</div>
+              <div className="text-xs text-gray-300">{settings.resolution} • {settings.fps}fps • {isRecording ? "Recording" : streamError ? "Offline" : "Live"}</div>
             </div>
           </div>
         </div>
@@ -475,81 +381,63 @@ export default function CameraPage() {
         {/* ── ZOOM CONTROLS ── */}
         {showZoomControls && (
           <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
-            <h3 className="font-bold text-lg text-gray-900 mb-4 border-b pb-2">
-              Zoom Level:{" "}
-              <span className="text-purple-600">{zoomLevel.toFixed(1)}x</span>
-            </h3>
-            <input
-              type="range"
-              min="1.0"
-              max="4.0"
-              step="0.1"
-              value={zoomLevel}
-              onChange={(e) => setZoomLevel(Number(e.target.value))}
-              className="w-full h-2 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-            />
-            <div className="flex justify-between text-sm text-gray-500 mt-2">
-              <span>1× (Wide)</span>
-              <span>4× (Macro)</span>
-            </div>
+            <h3 className="font-bold text-lg text-gray-900 mb-4 border-b pb-2">Zoom Level: <span className="text-purple-600">{zoomLevel.toFixed(1)}x</span></h3>
+            <input type="range" min="1.0" max="4.0" step="0.1" value={zoomLevel} onChange={(e) => setZoomLevel(Number(e.target.value))} className="w-full h-2 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-purple-600" />
+            <div className="flex justify-between text-sm text-gray-500 mt-2"><span>1× (Wide)</span><span>4× (Macro)</span></div>
           </div>
         )}
 
-        {/* ── AI PLANT HEALTH + LEAF COUNT ── */}
+        {/* ── AI PLANT HEALTH + LEAF COUNT + HEIGHT ── */}
         <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
           <div className="flex items-center justify-between border-b pb-2 mb-4">
-            <h3 className="font-bold text-lg text-gray-900">
-              <span className="text-emerald-500">AI</span> Plant Health Status
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-lg text-gray-900">
+                <span className="text-emerald-500">AI</span> Plant Health Status
+              </h3>
+              {!isLiveDetection && (
+                <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-semibold">
+                  Mock Data
+                </span>
+              )}
+            </div>
             {detections.length > 0 && (
               <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
                 <span className="text-base">🌿</span>
-                <span className="text-xs font-bold text-emerald-700">
-                  {totalLeaves} leaves total
-                </span>
+                <span className="text-xs font-bold text-emerald-700">{totalLeaves} leaves total</span>
               </div>
             )}
           </div>
 
           {detections.length === 0 ? (
-            <p className="text-center text-gray-400 py-4 text-sm">
-              No detections available. Ensure the AI service is running.
-            </p>
+            <p className="text-center text-gray-400 py-4 text-sm">No detections available. Ensure the AI service is running.</p>
           ) : (
             <div className="space-y-3">
               {detections.map((plant, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center justify-between p-3 rounded-xl ${
-                    plant.color === "emerald"
-                      ? "bg-emerald-50 border border-emerald-200"
-                      : "bg-amber-50 border border-amber-200"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                        plant.color === "emerald" ? "bg-emerald-500" : "bg-amber-500"
-                      }`}
-                    />
-                    <span className="font-medium text-gray-900 text-sm">{plant.name}</span>
+                <div key={i} className={`p-3 rounded-xl ${plant.color === "emerald" ? "bg-emerald-50 border border-emerald-200" : "bg-amber-50 border border-amber-200"}`}>
+                  {/* Top row: name + status */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full flex-shrink-0 ${plant.color === "emerald" ? "bg-emerald-500" : "bg-amber-500"}`} />
+                      <span className="font-medium text-gray-900 text-sm">{plant.name}</span>
+                    </div>
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${plant.color === "emerald" ? "text-emerald-800 bg-emerald-200" : "text-amber-800 bg-amber-200"}`}>
+                      {plant.status}
+                    </span>
                   </div>
+                  {/* Bottom row: leaf count + height */}
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 bg-white border border-gray-200 px-2 py-0.5 rounded-lg">
                       <span className="text-xs">🌿</span>
                       <span className="text-xs font-semibold text-gray-700">
-                        {plant.leafCount !== undefined ? plant.leafCount : "—"}
+                        {plant.leafCount !== undefined ? `${plant.leafCount} leaves` : "— leaves"}
                       </span>
                     </div>
-                    <span
-                      className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                        plant.color === "emerald"
-                          ? "text-emerald-800 bg-emerald-200"
-                          : "text-amber-800 bg-amber-200"
-                      }`}
-                    >
-                      {plant.status}
-                    </span>
+                    <div className="flex items-center gap-1 bg-white border border-gray-200 px-2 py-0.5 rounded-lg">
+                      <span className="text-xs">📏</span>
+                      <span className="text-xs font-semibold text-gray-700">
+                        {plant.height !== undefined ? `${plant.height} cm` : "— cm"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -559,89 +447,27 @@ export default function CameraPage() {
 
         {/* ── ACTION CENTER ── */}
         <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
-          <h3 className="font-bold text-lg text-gray-900 mb-4 border-b pb-2">
-            Action Center
-          </h3>
+          <h3 className="font-bold text-lg text-gray-900 mb-4 border-b pb-2">Action Center</h3>
           <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={handleSnapshot}
-              disabled={streamError}
-              className={`p-4 rounded-xl font-bold transition-all shadow-sm hover:shadow-md active:scale-[0.98] ${
-                streamError
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-pink-100 hover:bg-pink-200 text-pink-700"
-              }`}
-            >
-              📸 Snapshot
+            <button onClick={handleSnapshot} disabled={streamError} className={`p-4 rounded-xl font-bold transition-all shadow-sm hover:shadow-md active:scale-[0.98] ${streamError ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-pink-100 hover:bg-pink-200 text-pink-700"}`}>📸 Snapshot</button>
+            <button onClick={openGallery} className="p-4 bg-emerald-100 hover:bg-emerald-200 rounded-xl font-bold text-emerald-700 transition-all shadow-sm hover:shadow-md active:scale-[0.98]">🖼️ Gallery</button>
+            <button onClick={handleRecord} disabled={streamError} className={`p-4 rounded-xl font-bold transition-all shadow-sm hover:shadow-md active:scale-[0.98] ${streamError ? "bg-gray-200 text-gray-400 cursor-not-allowed" : isRecording ? "bg-red-500 hover:bg-red-600 text-white" : "bg-blue-100 hover:bg-blue-200 text-blue-700"}`}>
+              {isRecording ? (<span className="inline-flex items-center gap-2"><span className="animate-ping inline-block w-3 h-3 bg-white rounded-full" />STOP ({formatDuration(recordingDuration)})</span>) : "🎥 Record"}
             </button>
-
             <button
-              onClick={openGallery}
-              className="p-4 bg-emerald-100 hover:bg-emerald-200 rounded-xl font-bold text-emerald-700 transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
-            >
-              🖼️ Gallery
-            </button>
-
-            <button
-              onClick={handleRecord}
+              onClick={() => { const next = !showZoomControls; setShowZoomControls(next); showToast(next ? "🔍 Zoom controls enabled." : "🔍 Zoom controls disabled.", "info") }}
               disabled={streamError}
-              className={`p-4 rounded-xl font-bold transition-all shadow-sm hover:shadow-md active:scale-[0.98] ${
-                streamError
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : isRecording
-                  ? "bg-red-500 hover:bg-red-600 text-white"
-                  : "bg-blue-100 hover:bg-blue-200 text-blue-700"
-              }`}
-            >
-              {isRecording ? (
-                <span className="inline-flex items-center gap-2">
-                  <span className="animate-ping inline-block w-3 h-3 bg-white rounded-full" />
-                  STOP ({formatDuration(recordingDuration)})
-                </span>
-              ) : (
-                "🎥 Record"
-              )}
-            </button>
-
-            <button
-              onClick={() => {
-                const next = !showZoomControls
-                setShowZoomControls(next)
-                showToast(
-                  next ? "🔍 Zoom controls enabled." : "🔍 Zoom controls disabled.",
-                  "info"
-                )
-              }}
-              disabled={streamError}
-              className={`p-4 rounded-xl font-bold transition-all shadow-sm hover:shadow-md active:scale-[0.98] ${
-                streamError
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : showZoomControls
-                  ? "bg-purple-500 hover:bg-purple-600 text-white"
-                  : "bg-purple-100 hover:bg-purple-200 text-purple-700"
-              }`}
+              className={`p-4 rounded-xl font-bold transition-all shadow-sm hover:shadow-md active:scale-[0.98] ${streamError ? "bg-gray-200 text-gray-400 cursor-not-allowed" : showZoomControls ? "bg-purple-500 hover:bg-purple-600 text-white" : "bg-purple-100 hover:bg-purple-200 text-purple-700"}`}
             >
               🔍 Zoom ({zoomLevel.toFixed(1)}×)
             </button>
-
-            <button
-              onClick={() => setShowSettings(true)}
-              className="col-span-2 p-4 bg-orange-100 hover:bg-orange-200 rounded-xl font-bold text-orange-700 transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
-            >
-              ⚙️ Settings
-            </button>
+            <button onClick={() => setShowSettings(true)} className="col-span-2 p-4 bg-orange-100 hover:bg-orange-200 rounded-xl font-bold text-orange-700 transition-all shadow-sm hover:shadow-md active:scale-[0.98]">⚙️ Settings</button>
           </div>
         </div>
       </div>
 
       <BottomNavigation />
-
-      <Toast
-        message={toast.message}
-        visible={toast.visible}
-        color={toast.color}
-        onClose={() => setToast((p) => ({ ...p, visible: false }))}
-      />
+      <Toast message={toast.message} visible={toast.visible} color={toast.color} onClose={() => setToast((p) => ({ ...p, visible: false }))} />
 
       {/* ── SETTINGS MODAL ── */}
       {showSettings && (
@@ -649,9 +475,7 @@ export default function CameraPage() {
           <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between z-10 rounded-t-2xl">
               <h2 className="text-xl font-bold text-gray-900">Camera Settings</h2>
-              <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full">
-                <X className="w-6 h-6" />
-              </button>
+              <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full"><X className="w-6 h-6" /></button>
             </div>
             <div className="p-4 space-y-6">
               <div>
@@ -695,9 +519,7 @@ export default function CameraPage() {
                 <button onClick={handleSaveSettings} disabled={!hasChanges} className={`w-full p-4 font-bold rounded-xl transition-colors shadow-lg active:scale-[0.99] ${hasChanges ? "bg-emerald-500 hover:bg-emerald-600 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}>
                   {hasChanges ? "Save Changes" : "Settings Synced"}
                 </button>
-                <button onClick={() => setShowSettings(false)} className="w-full p-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-colors active:scale-[0.99]">
-                  Close
-                </button>
+                <button onClick={() => setShowSettings(false)} className="w-full p-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-colors active:scale-[0.99]">Close</button>
               </div>
             </div>
           </div>
@@ -713,9 +535,7 @@ export default function CameraPage() {
                 <h2 className="text-xl font-bold text-gray-900">Snapshot Gallery</h2>
                 <p className="text-sm text-gray-500">Captured photos from the Raspberry Pi</p>
               </div>
-              <button onClick={() => setShowGallery(false)} className="text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full">
-                <X className="w-6 h-6" />
-              </button>
+              <button onClick={() => setShowGallery(false)} className="text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full"><X className="w-6 h-6" /></button>
             </div>
             <div className="p-4">
               {snapshotsLoading ? (
@@ -740,9 +560,7 @@ export default function CameraPage() {
                   ))}
                 </div>
               )}
-              <button onClick={() => setShowGallery(false)} className="w-full mt-4 p-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-colors active:scale-[0.99]">
-                Close Gallery
-              </button>
+              <button onClick={() => setShowGallery(false)} className="w-full mt-4 p-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-colors active:scale-[0.99]">Close Gallery</button>
             </div>
           </div>
         </div>
@@ -785,4 +603,4 @@ export default function CameraPage() {
       )}
     </div>
   )
-} 
+}
