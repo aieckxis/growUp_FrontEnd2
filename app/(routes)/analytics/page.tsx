@@ -16,7 +16,7 @@ import { usePathname } from "next/navigation"
 
 type SensorKey =
   | "waterTemp" | "ph" | "airTemp" | "lightIntensity"
-  | "waterLevel" | "waterFlow" | "humidity" | "airPressure"
+  | "waterFlow" | "humidity" | "airPressure"
 
 type SensorState = Record<SensorKey, boolean>
 type SensorTrendRow = { time: string } & Record<SensorKey, number>
@@ -31,20 +31,17 @@ const RASPI_API_BASE_URL = process.env.NEXT_PUBLIC_RASPI_API_URL || "http://192.
 const sensorConfig: {
   key: SensorKey; name: string; color: string; unit: string; format: (val: number) => string
 }[] = [
-  { key: "waterTemp",     name: "Water Temp (DS18B20)",   color: "#3b82f6", unit: "°C",    format: (v) => v.toFixed(1) },
-  { key: "ph",            name: "pH Level (PH4502C)",     color: "#8b5cf6", unit: "",       format: (v) => v.toFixed(1) },
-  { key: "airTemp",       name: "Air Temp (BME280)",      color: "#f59e0b", unit: "°C",    format: (v) => v.toFixed(0) },
-  { key: "lightIntensity",name: "Light (BH1750)",         color: "#eab308", unit: "lux",   format: (v) => v.toFixed(0) },
-  { key: "humidity",      name: "Humidity (BME280)",      color: "#14b8a6", unit: "%",     format: (v) => v.toFixed(0) },
-  { key: "airPressure",   name: "Air Pressure (BME280)",  color: "#ef4444", unit: "hPa",   format: (v) => v.toFixed(1) },
-  { key: "waterLevel",    name: "Water Level (HC SR04)",  color: "#06b6d4", unit: "%",     format: (v) => v.toFixed(0) },
-  { key: "waterFlow",     name: "Flow Rate (YF-S201)",    color: "#6366f1", unit: "L/min", format: (v) => v.toFixed(0) },
+  { key: "waterTemp",      name: "Water Temp (DS18B20)",  color: "#3b82f6", unit: "°C",    format: (v) => v.toFixed(1) },
+  { key: "ph",             name: "pH Level (PH4502C)",    color: "#8b5cf6", unit: "",       format: (v) => v.toFixed(1) },
+  { key: "airTemp",        name: "Air Temp (BME280)",     color: "#f59e0b", unit: "°C",    format: (v) => v.toFixed(0) },
+  { key: "lightIntensity", name: "Light (BH1750)",        color: "#eab308", unit: "lux",   format: (v) => v.toFixed(0) },
+  { key: "humidity",       name: "Humidity (BME280)",     color: "#14b8a6", unit: "%",     format: (v) => v.toFixed(0) },
+  { key: "airPressure",    name: "Air Pressure (BME280)", color: "#ef4444", unit: "hPa",   format: (v) => v.toFixed(1) },
+  { key: "waterFlow",      name: "Flow Rate (YF-S201)",   color: "#6366f1", unit: "L/min", format: (v) => v.toFixed(0) },
 ]
 
 /* --- API FUNCTIONS --- */
 
-// ✅ Fetch historical sensor data
-// Expected: { data: [{ time, waterTemp, ph, airTemp, lightIntensity, waterLevel, waterFlow, humidity, airPressure }] }
 const fetchSensorHistoryAPI = async (range: string): Promise<SensorTrendRow[]> => {
   try {
     const res = await fetch(`${RASPI_API_BASE_URL}/analytics/sensors?range=${range}`, {
@@ -60,8 +57,6 @@ const fetchSensorHistoryAPI = async (range: string): Promise<SensorTrendRow[]> =
   }
 }
 
-// ✅ Fetch plant growth history
-// Expected: { data: [{ day, height, leaves, health }] }
 const fetchGrowthHistoryAPI = async (range: string): Promise<GrowthRow[]> => {
   try {
     const res = await fetch(`${RASPI_API_BASE_URL}/analytics/growth?range=${range}`, {
@@ -77,8 +72,6 @@ const fetchGrowthHistoryAPI = async (range: string): Promise<GrowthRow[]> => {
   }
 }
 
-// ✅ Fetch latest single sensor reading (for Health Metrics & Live Table)
-// Reuses existing /api/sensors Next.js proxy
 const fetchLatestSensorAPI = async (): Promise<SensorTrendRow | undefined> => {
   try {
     const res = await fetch("/api/sensors", { cache: "no-store" })
@@ -87,12 +80,11 @@ const fetchLatestSensorAPI = async (): Promise<SensorTrendRow | undefined> => {
     if (json.status !== "success" || !json.data) return undefined
     const d = json.data
     return {
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
+      time:           new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
       waterTemp:      d.waterTemp      ?? 0,
       ph:             d.ph             ?? 0,
       airTemp:        d.airTemp        ?? 0,
       lightIntensity: d.lightIntensity ?? 0,
-      waterLevel:     d.waterLevel     ?? 0,
       waterFlow:      d.waterFlow      ?? 0,
       humidity:       d.humidity       ?? 0,
       airPressure:    d.airPressure    ?? 0,
@@ -146,10 +138,10 @@ const Navbar: React.FC<{ time: string; isConnected: boolean }> = ({ time, isConn
 const BottomNavigation = () => {
   const pathname = usePathname()
   const tabs = [
-    { id: "dashboard",  label: "Home",      href: "/dashboard",  icon: Home },
-    { id: "analytics",  label: "Analytics", href: "/analytics",  icon: BarChart3 },
-    { id: "camera",     label: "Camera",    href: "/camera",     icon: Camera },
-    { id: "settings",   label: "Settings",  href: "/settings",   icon: Settings },
+    { id: "dashboard", label: "Home",      href: "/dashboard", icon: Home },
+    { id: "analytics", label: "Analytics", href: "/analytics", icon: BarChart3 },
+    { id: "camera",    label: "Camera",    href: "/camera",    icon: Camera },
+    { id: "settings",  label: "Settings",  href: "/settings",  icon: Settings },
   ]
   return (
     <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200 shadow-lg z-50">
@@ -221,7 +213,7 @@ const SensorReadingsTable: React.FC<{ latestData?: SensorTrendRow; currentTime: 
 export default function Analytics() {
   const [selectedSensors, setSelectedSensors] = useState<SensorState>({
     waterTemp: true, ph: true, airTemp: false, lightIntensity: false,
-    waterLevel: false, waterFlow: false, humidity: false, airPressure: false,
+    waterFlow: false, humidity: false, airPressure: false,
   })
 
   const [selectedRange, setSelectedRange]         = useState("thisWeek")
@@ -236,12 +228,11 @@ export default function Analytics() {
   const [customSensorStartDate, setCustomSensorStartDate] = useState(formatDate())
   const [customSensorEndDate, setCustomSensorEndDate]     = useState(formatDate())
 
-  // ✅ All real data — no mock
-  const [growthData, setGrowthData]         = useState<GrowthRow[]>([])
-  const [growthLoading, setGrowthLoading]   = useState(true)
-  const [sensorHistory, setSensorHistory]   = useState<SensorTrendRow[]>([])
-  const [sensorLoading, setSensorLoading]   = useState(true)
-  const [latestReading, setLatestReading]   = useState<SensorTrendRow | undefined>(undefined)
+  const [growthData, setGrowthData]             = useState<GrowthRow[]>([])
+  const [growthLoading, setGrowthLoading]       = useState(true)
+  const [sensorHistory, setSensorHistory]       = useState<SensorTrendRow[]>([])
+  const [sensorLoading, setSensorLoading]       = useState(true)
+  const [latestReading, setLatestReading]       = useState<SensorTrendRow | undefined>(undefined)
   const [isRaspiConnected, setIsRaspiConnected] = useState(true)
 
   const MAX_SAMPLES = 200
@@ -254,13 +245,11 @@ export default function Analytics() {
     { key: "ph",             name: "pH Level",     color: "#8b5cf6" },
     { key: "airTemp",        name: "Air Temp",     color: "#f59e0b" },
     { key: "lightIntensity", name: "Light",        color: "#eab308" },
-    { key: "waterLevel",     name: "Water Level",  color: "#06b6d4" },
     { key: "waterFlow",      name: "Flow Rate",    color: "#6366f1" },
     { key: "humidity",       name: "Humidity",     color: "#14b8a6" },
     { key: "airPressure",    name: "Air Pressure", color: "#ef4444" },
   ]
 
-  // ✅ Fetch growth data when range changes
   useEffect(() => {
     const load = async () => {
       setGrowthLoading(true)
@@ -271,7 +260,6 @@ export default function Analytics() {
     load()
   }, [selectedRange])
 
-  // ✅ Fetch sensor history when range changes
   useEffect(() => {
     const load = async () => {
       setSensorLoading(true)
@@ -282,10 +270,8 @@ export default function Analytics() {
     load()
   }, [sensorExportRange])
 
-  // ✅ Live sensor polling every 5s
   useEffect(() => {
     let mounted = true
-
     const poll = async () => {
       const reading = await fetchLatestSensorAPI()
       if (!mounted) return
@@ -297,13 +283,11 @@ export default function Analytics() {
         setIsRaspiConnected(false)
       }
     }
-
     poll()
     const interval = setInterval(poll, 5000)
     return () => { mounted = false; clearInterval(interval) }
   }, [])
 
-  // Time ticker
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(interval)
@@ -327,7 +311,6 @@ export default function Analytics() {
     else { setSensorExportRange(""); setTimeout(() => setSensorExportRange("custom"), 0) }
   }
 
-  // Chart data: prefer live data for 24h, else use fetched history
   const chartSensorData = sensorExportRange === "24h" && liveSensorData.length > 0
     ? liveSensorData.slice(-24)
     : sensorHistory
@@ -337,8 +320,6 @@ export default function Analytics() {
   const toggleSensor = (key: SensorKey) => setSelectedSensors((prev) => ({ ...prev, [key]: !prev[key] }))
   const selectAllSensors = () => setSelectedSensors(Object.keys(selectedSensors).reduce((acc, key) => ({ ...acc, [key]: true }), {} as SensorState))
   const deselectAllSensors = () => setSelectedSensors(Object.keys(selectedSensors).reduce((acc, key) => ({ ...acc, [key]: false }), {} as SensorState))
-
-  /* --- EXPORTS --- */
 
   const exportGrowthDataCSV = () => {
     if (growthData.length === 0) return
@@ -365,8 +346,6 @@ export default function Analytics() {
     const sensorRows = chartSensorData.map((d) => ["Sensor", d.time, `Water: ${d.waterTemp}°C`, `pH: ${d.ph}`, `Light: ${d.lightIntensity}lux`])
     downloadCSV(`complete_analytics_${formatDate()}.csv`, headers, [...growthRows, [""], ...sensorRows])
   }
-
-  /* --- RENDER --- */
 
   return (
     <div className="min-h-screen bg-gray-50 max-w-md mx-auto">
