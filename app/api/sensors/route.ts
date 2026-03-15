@@ -3,7 +3,6 @@
 import { NextResponse } from 'next/server'
 
 export async function GET() {
-  // Replace with your actual IP or ngrok URL
   const RASPI_URL = "http://192.168.210.142:8000/sensors"
 
   try {
@@ -34,7 +33,7 @@ export async function GET() {
       // Humidity from BME280
       humidity: raspberryData.data.bme280?.humidity ?? 65,
       
-      // Light intensity from light sensor
+      // Light intensity from BH1750
       lightIntensity: raspberryData.data.light?.lux ?? 15000,
       
       // Air temperature from BME280
@@ -43,13 +42,8 @@ export async function GET() {
       // Air pressure from BME280
       airPressure: raspberryData.data.bme280?.pressure ?? 1012.0,
       
-      // Water level - NOT IN YOUR CURRENT SENSORS
-      // TODO: Add ultrasonic/float sensor or remove from dashboard
-      waterLevel: 85,
-      
-      // Water flow - NOT IN YOUR CURRENT SENSORS
-      // TODO: Add flow meter sensor or remove from dashboard
-      waterFlow: 4.5,
+      // Water flow from YF-S201 flow meter
+      waterFlow: raspberryData.data.flow?.rate ?? 4.5,
     }
 
     return NextResponse.json({
