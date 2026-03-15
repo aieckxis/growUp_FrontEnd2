@@ -11,6 +11,7 @@ interface PlantDetection {
   name: string
   status: string
   color: "emerald" | "amber"
+  leafCount?: number
 }
 
 interface Snapshot {
@@ -392,6 +393,9 @@ export default function CameraPage() {
     )
   }
 
+  /* ── total leaf count across all plants ── */
+  const totalLeaves = detections.reduce((sum, p) => sum + (p.leafCount ?? 0), 0)
+
   /* ─── RENDER ─────────────────────────────────────────────────────────── */
   return (
     <div className="min-h-screen bg-gray-50 max-w-md mx-auto">
@@ -491,11 +495,22 @@ export default function CameraPage() {
           </div>
         )}
 
-        {/* ── AI PLANT HEALTH ── */}
+        {/* ── AI PLANT HEALTH + LEAF COUNT ── */}
         <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
-          <h3 className="font-bold text-lg text-gray-900 mb-4 border-b pb-2">
-            <span className="text-emerald-500">AI</span> Plant Health Status
-          </h3>
+          <div className="flex items-center justify-between border-b pb-2 mb-4">
+            <h3 className="font-bold text-lg text-gray-900">
+              <span className="text-emerald-500">AI</span> Plant Health Status
+            </h3>
+            {detections.length > 0 && (
+              <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                <span className="text-base">🌿</span>
+                <span className="text-xs font-bold text-emerald-700">
+                  {totalLeaves} leaves total
+                </span>
+              </div>
+            )}
+          </div>
+
           {detections.length === 0 ? (
             <p className="text-center text-gray-400 py-4 text-sm">
               No detections available. Ensure the AI service is running.
@@ -513,21 +528,31 @@ export default function CameraPage() {
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-3 h-3 rounded-full ${
+                      className={`w-3 h-3 rounded-full flex-shrink-0 ${
                         plant.color === "emerald" ? "bg-emerald-500" : "bg-amber-500"
                       }`}
                     />
-                    <span className="font-medium text-gray-900">{plant.name}</span>
+                    <span className="font-medium text-gray-900 text-sm">{plant.name}</span>
                   </div>
-                  <span
-                    className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                      plant.color === "emerald"
-                        ? "text-emerald-800 bg-emerald-200"
-                        : "text-amber-800 bg-amber-200"
-                    }`}
-                  >
-                    {plant.status}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {/* Leaf count badge */}
+                    <div className="flex items-center gap-1 bg-white border border-gray-200 px-2 py-0.5 rounded-lg">
+                      <span className="text-xs">🌿</span>
+                      <span className="text-xs font-semibold text-gray-700">
+                        {plant.leafCount !== undefined ? plant.leafCount : "—"}
+                      </span>
+                    </div>
+                    {/* Status badge */}
+                    <span
+                      className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                        plant.color === "emerald"
+                          ? "text-emerald-800 bg-emerald-200"
+                          : "text-amber-800 bg-amber-200"
+                      }`}
+                    >
+                      {plant.status}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
