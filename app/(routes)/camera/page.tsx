@@ -4,6 +4,7 @@ import { Camera, X, Download, Trash2, Home, BarChart3, Settings } from "lucide-r
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { PLANT_DETECTIONS } from "@/lib/constants"
 
 /* ─── TYPES ─────────────────────────────────────────────────────────────── */
 
@@ -258,8 +259,9 @@ export default function CameraPage() {
   const [streamLoading, setStreamLoading] = useState(true)
   const imgRef = useRef<HTMLImageElement>(null)
 
-  /* detections */
-  const [detections, setDetections] = useState<PlantDetection[]>([])
+  /* detections — starts with mock data, replaced by live API if available */
+  const [detections, setDetections] = useState<PlantDetection[]>(PLANT_DETECTIONS)
+  const [isLiveDetection, setIsLiveDetection] = useState(false)
 
   /* snapshots */
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
@@ -278,12 +280,18 @@ export default function CameraPage() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [recordingDuration, setRecordingDuration] = useState(0)
 
-  /* ── fetch plant detections ── */
+  /* ── fetch plant detections — fallback to mock if API fails ── */
   useEffect(() => {
     apiGet<{ detections: PlantDetection[] }>("/ai/detections")
-      .then(({ detections: d }) => setDetections(d))
+      .then(({ detections: d }) => {
+        if (d && d.length > 0) {
+          setDetections(d)
+          setIsLiveDetection(true)
+        }
+        // if API returns empty, keep mock data
+      })
       .catch(() => {
-        /* silently fail – detections panel stays empty */
+        // silently fall back to mock data already set in useState
       })
   }, [])
 
@@ -393,7 +401,7 @@ export default function CameraPage() {
     )
   }
 
-  /* ── total leaf count across all plants ── */
+  /* ── total leaf count ── */
   const totalLeaves = detections.reduce((sum, p) => sum + (p.leafCount ?? 0), 0)
 
   /* ─── RENDER ─────────────────────────────────────────────────────────── */
@@ -498,65 +506,62 @@ export default function CameraPage() {
         {/* ── AI PLANT HEALTH + LEAF COUNT ── */}
         <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
           <div className="flex items-center justify-between border-b pb-2 mb-4">
-            <h3 className="font-bold text-lg text-gray-900">
-              <span className="text-emerald-500">AI</span> Plant Health Status
-            </h3>
-            {detections.length > 0 && (
-              <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                <span className="text-base">🌿</span>
-                <span className="text-xs font-bold text-emerald-700">
-                  {totalLeaves} leaves total
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-lg text-gray-900">
+                <span className="text-emerald-500">AI</span> Plant Health Status
+              </h3>
+              {!isLiveDetection && (
+                <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-semibold">
+                  Mock Data
                 </span>
-              </div>
-            )}
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+              <span className="text-base">🌿</span>
+              <span className="text-xs font-bold text-emerald-700">
+                {totalLeaves} leaves total
+              </span>
+            </div>
           </div>
 
-          {detections.length === 0 ? (
-            <p className="text-center text-gray-400 py-4 text-sm">
-              No detections available. Ensure the AI service is running.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {detections.map((plant, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center justify-between p-3 rounded-xl ${
-                    plant.color === "emerald"
-                      ? "bg-emerald-50 border border-emerald-200"
-                      : "bg-amber-50 border border-amber-200"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                        plant.color === "emerald" ? "bg-emerald-500" : "bg-amber-500"
-                      }`}
-                    />
-                    <span className="font-medium text-gray-900 text-sm">{plant.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {/* Leaf count badge */}
-                    <div className="flex items-center gap-1 bg-white border border-gray-200 px-2 py-0.5 rounded-lg">
-                      <span className="text-xs">🌿</span>
-                      <span className="text-xs font-semibold text-gray-700">
-                        {plant.leafCount !== undefined ? plant.leafCount : "—"}
-                      </span>
-                    </div>
-                    {/* Status badge */}
-                    <span
-                      className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                        plant.color === "emerald"
-                          ? "text-emerald-800 bg-emerald-200"
-                          : "text-amber-800 bg-amber-200"
-                      }`}
-                    >
-                      {plant.status}
+          <div className="space-y-3">
+            {detections.map((plant, i) => (
+              <div
+                key={i}
+                className={`flex items-center justify-between p-3 rounded-xl ${
+                  plant.color === "emerald"
+                    ? "bg-emerald-50 border border-emerald-200"
+                    : "bg-amber-50 border border-amber-200"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                      plant.color === "emerald" ? "bg-emerald-500" : "bg-amber-500"
+                    }`}
+                  />
+                  <span className="font-medium text-gray-900 text-sm">{plant.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-white border border-gray-200 px-2 py-0.5 rounded-lg">
+                    <span className="text-xs">🌿</span>
+                    <span className="text-xs font-semibold text-gray-700">
+                      {plant.leafCount !== undefined ? plant.leafCount : "—"}
                     </span>
                   </div>
+                  <span
+                    className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                      plant.color === "emerald"
+                        ? "text-emerald-800 bg-emerald-200"
+                        : "text-amber-800 bg-amber-200"
+                    }`}
+                  >
+                    {plant.status}
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* ── ACTION CENTER ── */}
@@ -659,11 +664,8 @@ export default function CameraPage() {
               </button>
             </div>
             <div className="p-4 space-y-6">
-              {/* Resolution */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Resolution
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Resolution</label>
                 <select
                   value={settings.resolution}
                   onChange={(e) => handleSettingChange("resolution", e.target.value)}
@@ -674,11 +676,8 @@ export default function CameraPage() {
                 </select>
               </div>
 
-              {/* FPS */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Frame Rate (FPS)
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Frame Rate (FPS)</label>
                 <select
                   value={settings.fps}
                   onChange={(e) => handleSettingChange("fps", Number(e.target.value))}
@@ -689,54 +688,35 @@ export default function CameraPage() {
                 </select>
               </div>
 
-              {/* Brightness */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Brightness:{" "}
-                  <span className="text-emerald-600 font-bold">{settings.brightness}%</span>
+                  Brightness: <span className="text-emerald-600 font-bold">{settings.brightness}%</span>
                 </label>
                 <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={settings.brightness}
+                  type="range" min="0" max="100" value={settings.brightness}
                   onChange={(e) => handleSettingChange("brightness", Number(e.target.value))}
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                 />
               </div>
 
-              {/* Contrast */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Contrast:{" "}
-                  <span className="text-emerald-600 font-bold">{settings.contrast}%</span>
+                  Contrast: <span className="text-emerald-600 font-bold">{settings.contrast}%</span>
                 </label>
                 <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={settings.contrast}
+                  type="range" min="0" max="100" value={settings.contrast}
                   onChange={(e) => handleSettingChange("contrast", Number(e.target.value))}
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                 />
               </div>
 
-              {/* AI Sensitivity */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  AI Detection Sensitivity:{" "}
-                  <span className="text-emerald-600 font-bold">
-                    {settings.detectionSensitivity}%
-                  </span>
+                  AI Detection Sensitivity: <span className="text-emerald-600 font-bold">{settings.detectionSensitivity}%</span>
                 </label>
                 <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={settings.detectionSensitivity}
-                  onChange={(e) =>
-                    handleSettingChange("detectionSensitivity", Number(e.target.value))
-                  }
+                  type="range" min="0" max="100" value={settings.detectionSensitivity}
+                  onChange={(e) => handleSettingChange("detectionSensitivity", Number(e.target.value))}
                   className="w-full h-2 bg-emerald-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -744,7 +724,6 @@ export default function CameraPage() {
                 </p>
               </div>
 
-              {/* Motion Detection */}
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
                 <div>
                   <div className="font-semibold text-gray-900">Motion Detection</div>
@@ -752,18 +731,14 @@ export default function CameraPage() {
                 </div>
                 <label className="relative inline-block w-12 h-6">
                   <input
-                    type="checkbox"
-                    checked={settings.motionDetection}
-                    onChange={(e) =>
-                      handleSettingChange("motionDetection", e.target.checked)
-                    }
+                    type="checkbox" checked={settings.motionDetection}
+                    onChange={(e) => handleSettingChange("motionDetection", e.target.checked)}
                     className="sr-only peer"
                   />
                   <div className="w-12 h-6 bg-gray-300 rounded-full peer peer-checked:after:translate-x-6 peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" />
                 </label>
               </div>
 
-              {/* Save / Close */}
               <div className="space-y-3 pt-2">
                 <button
                   onClick={handleSaveSettings}
@@ -831,9 +806,7 @@ export default function CameraPage() {
                         />
                       </div>
                       <div className="p-3 bg-white">
-                        <div className="font-semibold text-gray-900 text-sm">
-                          {snapshot.date}
-                        </div>
+                        <div className="font-semibold text-gray-900 text-sm">{snapshot.date}</div>
                         <div className="text-xs text-gray-500">{snapshot.time}</div>
                       </div>
                     </div>
@@ -863,10 +836,7 @@ export default function CameraPage() {
                 <span className="text-2xl">←</span> Back to Gallery
               </button>
               <button
-                onClick={() => {
-                  setSelectedSnapshot(null)
-                  setShowGallery(false)
-                }}
+                onClick={() => { setSelectedSnapshot(null); setShowGallery(false) }}
                 className="text-white hover:text-red-500 transition-colors p-2 rounded-full"
               >
                 <X className="w-8 h-8" />
@@ -900,10 +870,7 @@ export default function CameraPage() {
                   </button>
                 </div>
                 <button
-                  onClick={() => {
-                    setSelectedSnapshot(null)
-                    setShowGallery(false)
-                  }}
+                  onClick={() => { setSelectedSnapshot(null); setShowGallery(false) }}
                   className="w-full mt-4 p-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-colors active:scale-[0.99]"
                 >
                   Close &amp; Exit
