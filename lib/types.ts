@@ -14,6 +14,7 @@ export interface SystemControls {
   pump: boolean
   fan: boolean
   growLight: boolean
+  humidityController: boolean
 }
 
 export interface AlertNotification {

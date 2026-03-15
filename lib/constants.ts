@@ -120,6 +120,7 @@ export const INITIAL_CONTROLS = {
   pump: true,
   fan: true,
   growLight: true,
+  humidityController: false,
 }
 
 export const ALERTS_DATA = [

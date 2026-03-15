@@ -1,6 +1,6 @@
 "use client"
 
-import { Waves, Wind, Sun } from "lucide-react"
+import { Waves, Wind, Sun, Droplets } from "lucide-react"
 import { ControlToggle } from "@/app/(routes)/dashboard/components/ControlToggle"
 import type { SystemControls } from "@/lib/types"
 
@@ -31,6 +31,12 @@ export const ControlPanel = ({ controls, onChange }: ControlPanelProps) => {
           icon={Sun}
           active={controls.growLight}
           onChange={(val) => onChange({ ...controls, growLight: val })}
+        />
+        <ControlToggle
+          label="Humidity Controller"
+          icon={Droplets}
+          active={controls.humidityController}
+          onChange={(val) => onChange({ ...controls, humidityController: val })}
         />
       </div>
     </div>

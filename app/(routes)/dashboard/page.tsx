@@ -12,6 +12,7 @@ interface SystemControls {
   pump: boolean;
   fan: boolean;
   growLight: boolean;
+  humidityController: boolean;
 }
 
 interface ThresholdState {
@@ -23,6 +24,7 @@ interface ControlState {
   pump: boolean;
   fan: boolean;
   growLight: boolean;
+  humidityController: boolean;
 }
 
 interface SensorCardProps {
@@ -66,7 +68,8 @@ interface ControlToggleProps {
 const INITIAL_CONTROLS_FULL: SystemControls = {
   pump: true,
   fan: false,
-  growLight: true
+  growLight: true,
+  humidityController: false,
 }
 
 const INITIAL_THRESHOLDS: ThresholdState = {
@@ -412,6 +415,7 @@ export default function Dashboard() {
             <ControlToggle label="Dosing Pump" icon={Waves} active={localControls.pump} onChange={val => handleLocalControlChange('pump', val)} />
             <ControlToggle label="DC Fan" icon={Wind} active={localControls.fan} onChange={val => handleLocalControlChange('fan', val)} />
             <ControlToggle label="Grow Light" icon={Sun} active={localControls.growLight} onChange={val => handleLocalControlChange('growLight', val)} />
+            <ControlToggle label="Humidity Controller" icon={Droplets} active={localControls.humidityController} onChange={val => handleLocalControlChange('humidityController', val)} />
           </div>
           <button onClick={handleQuickControlsSave} className="w-full mt-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors">
             Save Controls
