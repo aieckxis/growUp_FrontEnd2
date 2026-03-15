@@ -6,4 +6,4 @@ export const setSystemMode = async (mode: 'manual' | 'auto') => {
   console.log("Setting mode to:", mode);
 };
 
-export const mapControlToComponent = (id: string) => id;
+export const mapControlToComponent = (id: string) => id; 

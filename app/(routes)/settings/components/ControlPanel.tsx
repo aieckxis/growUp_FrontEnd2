@@ -41,4 +41,4 @@ export const ControlPanel = ({ controls, onChange }: ControlPanelProps) => {
       </div>
     </div>
   )
-}
+} 

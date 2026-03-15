@@ -72,4 +72,4 @@ export interface SensorConfig {
   min: number
   max: number
   color: string
-}
+} 
