@@ -4,7 +4,6 @@ import { Camera, X, Download, Trash2, Home, BarChart3, Settings } from "lucide-r
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { PLANT_DETECTIONS } from "@/lib/constants"
 
 /* ─── TYPES ─────────────────────────────────────────────────────────────── */
 
@@ -101,23 +100,16 @@ function useCameraSettings(
   const [hasChanges, setHasChanges] = useState(false)
 
   useEffect(() => {
-    apiGet<{ settings: Partial<CameraSettingsState>; isRecording: boolean }>(
-      "/camera/settings"
-    )
+    apiGet<{ settings: Partial<CameraSettingsState>; isRecording: boolean }>("/camera/settings")
       .then(({ settings: s, isRecording: r }) => {
         setSettings((prev) => ({ ...prev, ...s }))
         setIsRecording(r)
       })
-      .catch(() =>
-        showToast("⚠️ Could not load camera settings from Raspberry Pi.", "warning")
-      )
+      .catch(() => showToast("⚠️ Could not load camera settings from Raspberry Pi.", "warning"))
       .finally(() => setIsLoading(false))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSettingChange = (
-    key: keyof CameraSettingsState,
-    value: string | number | boolean
-  ) => {
+  const handleSettingChange = (key: keyof CameraSettingsState, value: string | number | boolean) => {
     setSettings((prev) => ({ ...prev, [key]: value }))
     setHasChanges(true)
   }
@@ -138,12 +130,7 @@ function useCameraSettings(
     try {
       await apiPost("/camera/record", { action: shouldRecord ? "start" : "stop" })
       setIsRecording(shouldRecord)
-      showToast(
-        shouldRecord
-          ? "🎥 Recording started."
-          : "⏹️ Recording stopped. File is processing…",
-        shouldRecord ? "info" : "success"
-      )
+      showToast(shouldRecord ? "🎥 Recording started." : "⏹️ Recording stopped. File is processing…", shouldRecord ? "info" : "success")
       return true
     } catch {
       showToast("❌ Failed to toggle recording.", "error")
@@ -151,15 +138,7 @@ function useCameraSettings(
     }
   }
 
-  return {
-    settings,
-    isRecording,
-    isLoading,
-    hasChanges,
-    handleSettingChange,
-    handleSave,
-    handleToggleRecord,
-  }
+  return { settings, isRecording, isLoading, hasChanges, handleSettingChange, handleSave, handleToggleRecord }
 }
 
 /* ─── UI COMPONENTS ──────────────────────────────────────────────────────── */
@@ -167,18 +146,12 @@ function useCameraSettings(
 const Toast: React.FC<ToastProps> = ({ message, visible, color, onClose }) => {
   if (!visible) return null
   const palette: Record<ToastProps["color"], string> = {
-    success: "bg-emerald-600",
-    info: "bg-blue-600",
-    warning: "bg-amber-600",
-    error: "bg-red-600",
-    default: "bg-gray-800",
+    success: "bg-emerald-600", info: "bg-blue-600", warning: "bg-amber-600", error: "bg-red-600", default: "bg-gray-800",
   }
   return (
     <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 rounded-xl shadow-2xl z-[100] text-white ${palette[color]}`}>
       <span className="font-medium">{message}</span>
-      <button onClick={onClose} className="p-1 rounded-full hover:bg-white/20">
-        <X className="w-4 h-4" />
-      </button>
+      <button onClick={onClose} className="p-1 rounded-full hover:bg-white/20"><X className="w-4 h-4" /></button>
     </div>
   )
 }
@@ -223,13 +196,10 @@ const BottomNavigation = () => {
 export default function CameraPage() {
   const [toast, setToast] = useState<{ message: string; visible: boolean; color: ToastProps["color"] }>({ message: "", visible: false, color: "info" })
 
-  const showToast = useCallback(
-    (message: string, color: ToastProps["color"] = "info") => {
-      setToast({ message, visible: true, color })
-      setTimeout(() => setToast((p) => ({ ...p, visible: false })), 3000)
-    },
-    []
-  )
+  const showToast = useCallback((message: string, color: ToastProps["color"] = "info") => {
+    setToast({ message, visible: true, color })
+    setTimeout(() => setToast((p) => ({ ...p, visible: false })), 3000)
+  }, [])
 
   const { settings, isRecording, isLoading, hasChanges, handleSettingChange, handleSave, handleToggleRecord } = useCameraSettings(showToast)
 
@@ -237,10 +207,7 @@ export default function CameraPage() {
   const [streamLoading, setStreamLoading] = useState(true)
   const imgRef = useRef<HTMLImageElement>(null)
 
-  /* detections — starts with mock, replaced by live API if available */
-  const [detections, setDetections] = useState<PlantDetection[]>(PLANT_DETECTIONS)
-  const [isLiveDetection, setIsLiveDetection] = useState(false)
-
+  const [detections, setDetections] = useState<PlantDetection[]>([])
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [snapshotsLoading, setSnapshotsLoading] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -251,19 +218,11 @@ export default function CameraPage() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [recordingDuration, setRecordingDuration] = useState(0)
 
-  /* ── fetch plant detections — fallback to mock if API fails ── */
+  /* ── fetch plant detections from live API ── */
   useEffect(() => {
     apiGet<{ detections: PlantDetection[] }>("/ai/detections")
-      .then(({ detections: d }) => {
-        if (d && d.length > 0) {
-          setDetections(d)
-          setIsLiveDetection(true)
-        }
-        // if empty, keep mock data
-      })
-      .catch(() => {
-        // silently fall back to mock data already set in useState
-      })
+      .then(({ detections: d }) => setDetections(d))
+      .catch(() => { /* silently fail – detections panel stays empty */ })
   }, [])
 
   useEffect(() => {
@@ -390,16 +349,9 @@ export default function CameraPage() {
         {/* ── AI PLANT HEALTH + LEAF COUNT + HEIGHT ── */}
         <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
           <div className="flex items-center justify-between border-b pb-2 mb-4">
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-lg text-gray-900">
-                <span className="text-emerald-500">AI</span> Plant Health Status
-              </h3>
-              {!isLiveDetection && (
-                <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-semibold">
-                  Mock Data
-                </span>
-              )}
-            </div>
+            <h3 className="font-bold text-lg text-gray-900">
+              <span className="text-emerald-500">AI</span> Plant Health Status
+            </h3>
             {detections.length > 0 && (
               <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
                 <span className="text-base">🌿</span>
@@ -414,7 +366,6 @@ export default function CameraPage() {
             <div className="space-y-3">
               {detections.map((plant, i) => (
                 <div key={i} className={`p-3 rounded-xl ${plant.color === "emerald" ? "bg-emerald-50 border border-emerald-200" : "bg-amber-50 border border-amber-200"}`}>
-                  {/* Top row: name + status */}
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <div className={`w-3 h-3 rounded-full flex-shrink-0 ${plant.color === "emerald" ? "bg-emerald-500" : "bg-amber-500"}`} />
@@ -424,7 +375,6 @@ export default function CameraPage() {
                       {plant.status}
                     </span>
                   </div>
-                  {/* Bottom row: leaf count + height */}
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 bg-white border border-gray-200 px-2 py-0.5 rounded-lg">
                       <span className="text-xs">🌿</span>
